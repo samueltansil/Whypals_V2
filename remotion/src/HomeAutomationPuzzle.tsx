@@ -2,7 +2,6 @@ import React from "react";
 import {
   AbsoluteFill,
   Easing,
-  Img,
   interpolate,
   spring,
   useCurrentFrame,
@@ -56,7 +55,8 @@ const Piece: React.FC<PieceProps> = ({
       transform,
     }}
   >
-    <Img
+    {/* eslint-disable-next-line @remotion/warn-native-media-tag */}
+    <img
       src={LOGO_SRC}
       style={{
         position: "absolute",

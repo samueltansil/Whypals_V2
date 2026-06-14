@@ -2,6 +2,7 @@ import React from "react";
 import { Composition } from "remotion";
 import { HelloWorld } from "./HelloWorld";
 import { StoryVideo } from "./StoryVideo";
+import { HomeAutomationOutro } from "./HomeAutomationOutro";
 
 export const RemotionRoot: React.FC = () => {
   return (
@@ -30,6 +31,14 @@ export const RemotionRoot: React.FC = () => {
           content: "Story content goes here...",
           backgroundColor: "#FFF9F0",
         }}
+      />
+      <Composition
+        id="HomeAutomationOutro"
+        component={HomeAutomationOutro}
+        durationInFrames={120}
+        fps={30}
+        width={1080}
+        height={1920}
       />
     </>
   );

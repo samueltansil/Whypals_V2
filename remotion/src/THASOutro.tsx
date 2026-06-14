@@ -9,24 +9,30 @@ import {
 } from "remotion";
 import { LOGO_SRC } from "./logoData";
 
-// ── Canvas & image constants ──────────────────────────────────────────────────
+// ── Canvas & scale ────────────────────────────────────────────────────────────
 const IMG_W = 2024;
 const IMG_H = 722;
-const LOGO_SCALE = (1080 * 0.88) / IMG_W;
-const DISP_W = IMG_W * LOGO_SCALE;
-const DISP_H = IMG_H * LOGO_SCALE;
-const LOGO_LEFT = (1080 - DISP_W) / 2;
-const LOGO_TOP = (1920 - DISP_H) / 2;
+const SC = (1080 * 0.88) / IMG_W;          // ≈ 0.469
+const DW = IMG_W * SC;                      // displayed logo width  ≈ 950px
+const DH = IMG_H * SC;                      // displayed logo height ≈ 339px
+const OX = (1080 - DW) / 2;               // left offset ≈ 65px
+const OY = (1920 - DH) / 2;               // top offset  ≈ 790px
 
-// ── Slice coordinates (original image px) ────────────────────────────────────
-// If any piece looks misaligned in Studio, tweak x/y/w/h here
-const S = {
-  leftHome:   { x: 0,   y: 0,   w: 315,  h: 400 }, // THE + H
-  houseO:     { x: 308, y: 0,   w: 320,  h: 400 }, // house icon / O
-  rightHome:  { x: 614, y: 0,   w: 476,  h: 400 }, // M + E
-  automation: { x: 0,   y: 395, w: 2024, h: 185 }, // AUTOMATION row
-  storeLine:  { x: 0,   y: 573, w: 2024, h: 149 }, // STORE + blue line
+// ── Slice coordinates (original image pixels) ─────────────────────────────────
+// Tweak x/y/w/h if any piece shows the wrong region in Studio
+const SLICES = {
+  the:   { x: 0,    y: 0,   w: 95,   h: 395 }, // small "THE" left of HOME
+  home:  { x: 95,   y: 0,   w: 1929, h: 395 }, // H + house + M + E
+  auto:  { x: 0,    y: 390, w: 2024, h: 182 }, // AUTOMATION row
+  store: { x: 1565, y: 572, w: 459,  h: 100 }, // STORE text (right side)
 };
+
+// Blue line is recreated in CSS so we get a clean left-to-right wipe
+const LINE_LEFT   = OX;
+const LINE_TOP    = OY + 640 * SC;   // ≈ y=640 in original image
+const LINE_WIDTH  = 1560 * SC;       // stops just before STORE starts
+const LINE_HEIGHT = Math.max(6, Math.round(22 * SC));
+const LINE_COLOR  = "#1F6FB2";
 
 // ── CSS sprite piece ──────────────────────────────────────────────────────────
 interface PieceProps {
@@ -35,22 +41,18 @@ interface PieceProps {
   opacity?: number;
 }
 
-const Piece: React.FC<PieceProps> = ({
-  x, y, w, h,
-  transform = "none",
-  opacity = 1,
-}) => (
+const Piece: React.FC<PieceProps> = ({ x, y, w, h, transform = "none", opacity = 1 }) => (
   <div
     style={{
       position: "absolute",
-      left: LOGO_LEFT + x * LOGO_SCALE,
-      top: LOGO_TOP + y * LOGO_SCALE,
-      width: w * LOGO_SCALE,
-      height: h * LOGO_SCALE,
-      backgroundImage: `url(${LOGO_SRC})`,
-      backgroundSize: `${DISP_W}px ${DISP_H}px`,
-      backgroundPosition: `-${x * LOGO_SCALE}px -${y * LOGO_SCALE}px`,
-      backgroundRepeat: "no-repeat",
+      left:   OX + x * SC,
+      top:    OY + y * SC,
+      width:  w * SC,
+      height: h * SC,
+      backgroundImage:    `url(${LOGO_SRC})`,
+      backgroundSize:     `${DW}px ${DH}px`,
+      backgroundPosition: `-${x * SC}px -${y * SC}px`,
+      backgroundRepeat:   "no-repeat",
       transform,
       transformOrigin: "center center",
       opacity,
@@ -58,67 +60,47 @@ const Piece: React.FC<PieceProps> = ({
   />
 );
 
-// ── Main composition ──────────────────────────────────────────────────────────
+// ── Composition ───────────────────────────────────────────────────────────────
 export const THASOutro: React.FC = () => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
 
-  // ── House drops from above (0-42f) ───────────────────────────────────────
-  const houseSpring = spring({
-    fps,
-    frame,
-    config: { damping: 9, stiffness: 90, mass: 1.1 },
-    durationInFrames: 42,
-  });
-  // Start 850px above final spot (just off top of screen), scale 1.8→1
-  const houseDropY  = interpolate(houseSpring, [0, 1], [-850, 0]);
-  const houseScale  = interpolate(houseSpring, [0, 1], [1.8, 1]);
-  const houseOpacity = interpolate(frame, [0, 5], [0, 1], {
-    extrapolateLeft: "clamp", extrapolateRight: "clamp",
+  // Snappy spring — settles fast, minimal overshoot
+  const snap = (startF: number) =>
+    spring({ fps, frame: frame - startF, config: { damping: 20, stiffness: 180, mass: 0.55 }, durationInFrames: 20 });
+
+  // ── 1. "THE" — fades up from 18px below (0-20f) ──────────────────────────
+  const theSp = snap(0);
+  const theOp = interpolate(theSp, [0, 1], [0, 1]);
+  const theY  = interpolate(theSp, [0, 1], [18, 0]);
+
+  // ── 2. "HOME" — fades down from 18px above (14-34f) ──────────────────────
+  const homeSp = snap(14);
+  const homeOp = interpolate(homeSp, [0, 1], [0, 1]);
+  const homeY  = interpolate(homeSp, [0, 1], [-18, 0]);
+
+  // ── 3. "AUTOMATION" — fades up from 18px below (28-48f) ──────────────────
+  const autoSp = snap(28);
+  const autoOp = interpolate(autoSp, [0, 1], [0, 1]);
+  const autoY  = interpolate(autoSp, [0, 1], [18, 0]);
+
+  // ── 4. "STORE" — slides in 24px from right (42-62f) ─────────────────────
+  const storeSp = snap(42);
+  const storeOp = interpolate(storeSp, [0, 1], [0, 1]);
+  const storeX  = interpolate(storeSp, [0, 1], [24, 0]);
+
+  // ── 5. Blue line — wipes left→right (54-76f) ─────────────────────────────
+  const lineW = interpolate(frame, [54, 76], [0, LINE_WIDTH], {
+    extrapolateLeft:  "clamp",
+    extrapolateRight: "clamp",
+    easing: Easing.out(Easing.cubic),
   });
 
-  // ── THE+H slides from left, M+E slides from right (8-46f) ────────────────
-  const sidesSpring = spring({
-    fps,
-    frame: frame - 8,
-    config: { damping: 11, stiffness: 120, mass: 0.8 },
-    durationInFrames: 38,
-  });
-  const leftShift   = interpolate(sidesSpring, [0, 1], [-600, 0]);
-  const rightShift  = interpolate(sidesSpring, [0, 1], [ 600, 0]);
-  const sidesOpacity = interpolate(frame, [8, 20], [0, 1], {
-    extrapolateLeft: "clamp", extrapolateRight: "clamp",
-  });
-
-  // ── AUTOMATION rises from below (40-68f) ─────────────────────────────────
-  const autoSpring = spring({
-    fps,
-    frame: frame - 40,
-    config: { damping: 13, stiffness: 130, mass: 0.8 },
-    durationInFrames: 28,
-  });
-  const autoShift   = interpolate(autoSpring, [0, 1], [180, 0]);
-  const autoOpacity = interpolate(frame, [40, 52], [0, 1], {
-    extrapolateLeft: "clamp", extrapolateRight: "clamp",
-  });
-
-  // ── STORE + line rises from below, 6f after AUTOMATION (46-74f) ──────────
-  const storeSpring = spring({
-    fps,
-    frame: frame - 46,
-    config: { damping: 13, stiffness: 130, mass: 0.8 },
-    durationInFrames: 28,
-  });
-  const storeShift   = interpolate(storeSpring, [0, 1], [180, 0]);
-  const storeOpacity = interpolate(frame, [46, 58], [0, 1], {
-    extrapolateLeft: "clamp", extrapolateRight: "clamp",
-  });
-
-  // ── Whole-logo pulse (82-98f) ─────────────────────────────────────────────
+  // ── Subtle pulse (82-98f) ─────────────────────────────────────────────────
   const pulse =
     frame < 82  ? 1
-    : frame < 90  ? interpolate(frame, [82, 90],  [1, 1.035], { easing: Easing.out(Easing.sin) })
-    : frame < 98  ? interpolate(frame, [90, 98],  [1.035, 1], { easing: Easing.out(Easing.sin) })
+    : frame < 90  ? interpolate(frame, [82, 90],  [1, 1.03],  { easing: Easing.out(Easing.sin) })
+    : frame < 98  ? interpolate(frame, [90, 98],  [1.03, 1],  { easing: Easing.out(Easing.sin) })
     : 1;
 
   // ── Fade to white (108-122f) ──────────────────────────────────────────────
@@ -128,60 +110,47 @@ export const THASOutro: React.FC = () => {
 
   return (
     <AbsoluteFill style={{ backgroundColor: "#FFFFFF" }}>
-      <div
-        style={{
+      <div style={{ position: "absolute", inset: 0, transform: `scale(${pulse})`, transformOrigin: "center center" }}>
+
+        {/* 1 — THE */}
+        <Piece {...SLICES.the}
+          opacity={theOp}
+          transform={`translateY(${theY}px)`}
+        />
+
+        {/* 2 — HOME */}
+        <Piece {...SLICES.home}
+          opacity={homeOp}
+          transform={`translateY(${homeY}px)`}
+        />
+
+        {/* 3 — AUTOMATION */}
+        <Piece {...SLICES.auto}
+          opacity={autoOp}
+          transform={`translateY(${autoY}px)`}
+        />
+
+        {/* 4 — STORE */}
+        <Piece {...SLICES.store}
+          opacity={storeOp}
+          transform={`translateX(${storeX}px)`}
+        />
+
+        {/* 5 — Blue line wipe */}
+        <div style={{
           position: "absolute",
-          inset: 0,
-          transform: `scale(${pulse})`,
-          transformOrigin: "center center",
-        }}
-      >
-        {/* THE + H — slides in from left */}
-        <Piece
-          {...S.leftHome}
-          transform={`translateX(${leftShift}px)`}
-          opacity={sidesOpacity}
-        />
+          left:            LINE_LEFT,
+          top:             LINE_TOP,
+          height:          LINE_HEIGHT,
+          width:           lineW,
+          backgroundColor: LINE_COLOR,
+          borderRadius:    2,
+        }} />
 
-        {/* House / O — drops from above with bounce */}
-        <Piece
-          {...S.houseO}
-          transform={`translateY(${houseDropY}px) scale(${houseScale})`}
-          opacity={houseOpacity}
-        />
-
-        {/* M + E — slides in from right */}
-        <Piece
-          {...S.rightHome}
-          transform={`translateX(${rightShift}px)`}
-          opacity={sidesOpacity}
-        />
-
-        {/* AUTOMATION — rises from below */}
-        <Piece
-          {...S.automation}
-          transform={`translateY(${autoShift}px)`}
-          opacity={autoOpacity}
-        />
-
-        {/* STORE + underline — rises from below, slight delay */}
-        <Piece
-          {...S.storeLine}
-          transform={`translateY(${storeShift}px)`}
-          opacity={storeOpacity}
-        />
       </div>
 
       {/* White fade overlay */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundColor: "#FFFFFF",
-          opacity: fadeOut,
-          pointerEvents: "none",
-        }}
-      />
+      <div style={{ position: "absolute", inset: 0, backgroundColor: "#FFFFFF", opacity: fadeOut, pointerEvents: "none" }} />
     </AbsoluteFill>
   );
 };

@@ -117,8 +117,8 @@ export const THASOutro: React.FC = () => {
   // ── Whole-logo pulse (82-98f) ─────────────────────────────────────────────
   const pulse =
     frame < 82  ? 1
-    : frame < 90  ? interpolate(frame, [82, 90],  [1, 1.035], { easing: Easing.out(Easing.sine) })
-    : frame < 98  ? interpolate(frame, [90, 98],  [1.035, 1], { easing: Easing.out(Easing.sine) })
+    : frame < 90  ? interpolate(frame, [82, 90],  [1, 1.035], { easing: Easing.out(Easing.sin) })
+    : frame < 98  ? interpolate(frame, [90, 98],  [1.035, 1], { easing: Easing.out(Easing.sin) })
     : 1;
 
   // ── Fade to white (108-122f) ──────────────────────────────────────────────

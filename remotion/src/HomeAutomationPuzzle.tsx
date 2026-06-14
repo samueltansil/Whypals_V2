@@ -5,10 +5,10 @@ import {
   Img,
   interpolate,
   spring,
-  staticFile,
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
+import logoSrc from "../public/logo.png";
 
 // ── Image & layout constants ──────────────────────────────────────────────────
 const IMG_W = 2024;
@@ -57,7 +57,7 @@ const Piece: React.FC<PieceProps> = ({
     }}
   >
     <Img
-      src={staticFile("logo.png")}
+      src={logoSrc}
       style={{
         position: "absolute",
         width: DISP_W,

@@ -8,7 +8,7 @@ import {
   useCurrentFrame,
   useVideoConfig,
 } from "remotion";
-import logoSrc from "../public/logo.png";
+import { LOGO_SRC } from "./logoData";
 
 // ── Image & layout constants ──────────────────────────────────────────────────
 const IMG_W = 2024;
@@ -57,7 +57,7 @@ const Piece: React.FC<PieceProps> = ({
     }}
   >
     <Img
-      src={logoSrc}
+      src={LOGO_SRC}
       style={{
         position: "absolute",
         width: DISP_W,

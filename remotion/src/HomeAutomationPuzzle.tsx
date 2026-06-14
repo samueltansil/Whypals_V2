@@ -50,25 +50,14 @@ const Piece: React.FC<PieceProps> = ({
       top: LOGO_TOP + clipY * SCALE,
       width: clipW * SCALE,
       height: clipH * SCALE,
-      overflow: "hidden",
-      opacity,
+      backgroundImage: `url(${LOGO_SRC})`,
+      backgroundSize: `${DISP_W}px ${DISP_H}px`,
+      backgroundPosition: `-${clipX * SCALE}px -${clipY * SCALE}px`,
+      backgroundRepeat: "no-repeat",
       transform,
+      opacity,
     }}
-  >
-    {/* eslint-disable-next-line @remotion/warn-native-media-tag */}
-    <img
-      src={LOGO_SRC}
-      style={{
-        position: "absolute",
-        width: DISP_W,
-        height: DISP_H,
-        left: -clipX * SCALE,
-        top: -clipY * SCALE,
-        userSelect: "none",
-        pointerEvents: "none",
-      }}
-    />
-  </div>
+  />
 );
 
 // ── Main composition ──────────────────────────────────────────────────────────

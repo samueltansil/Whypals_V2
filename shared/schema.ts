@@ -219,7 +219,7 @@ export const updateStorySchema = createInsertSchema(stories).omit({
 // Game templates linked to stories by title for scalability
 export const storyGames = pgTable("story_games", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  gameType: varchar("game_type", { length: 50 }).notNull(), // puzzle, match, quiz, whack, timeline, poll
+  gameType: varchar("game_type", { length: 50 }).notNull(), // puzzle, match, quiz, whack, timeline, poll, fillblank, truefalse, scramble
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   thumbnail: text("thumbnail"),
@@ -329,6 +329,35 @@ export interface PollGameConfig {
     question: string;
     options: string[];
   }>;
+  winMessage?: string;
+}
+
+export interface FillBlankGameConfig {
+  blanks: Array<{
+    id: string;
+    sentence: string; // the sentence with a blank shown as "___"
+    options: string[];
+    correctIndex: number;
+    explanation?: string;
+  }>;
+  winMessage?: string;
+}
+
+export interface TrueFalseGameConfig {
+  statements: Array<{
+    id: string;
+    statement: string;
+    isTrue: boolean;
+    explanation?: string;
+  }>;
+  secondsPerStatement?: number; // countdown per statement, default 8
+  winMessage?: string;
+}
+
+export interface PictureScrambleGameConfig {
+  imageUrl: string;
+  word: string; // the word to unscramble, shown as scrambled letter tiles
+  clue?: string;
   winMessage?: string;
 }
 

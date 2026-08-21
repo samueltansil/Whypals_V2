@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { AutoPublishToggle } from "@/components/AutoPublishToggle";
 import logo from "@assets/whypals-logo.png";
 import { CATEGORIES as ALL_CATEGORIES } from "@/lib/data";
 import type { Story, InsertStory } from "@shared/schema";
@@ -953,9 +954,12 @@ export default function AdminStories() {
               </p>
             </div>
           </div>
-          <Button onClick={() => setIsCreating(true)} data-testid="button-create-story">
-            <Plus className="w-4 h-4 mr-2" /> New Story
-          </Button>
+          <div className="flex items-center gap-3">
+            <AutoPublishToggle />
+            <Button onClick={() => setIsCreating(true)} data-testid="button-create-story">
+              <Plus className="w-4 h-4 mr-2" /> New Story
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

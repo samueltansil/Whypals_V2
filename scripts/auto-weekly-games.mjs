@@ -40,9 +40,10 @@
  * ("match") has been retired from this rotation too — it's still a fully
  * working type for any pre-existing games, just no longer generated.)
  *
- * All games are created with isActive: false (a draft, same review-first
- * pattern as the weekly stories) so nothing goes live without a look in
- * /admin/games first.
+ * Whether a created game goes live immediately or waits as a draft for
+ * review in /admin/games depends on the site's "Auto-publish" toggle
+ * (visible in /admin/games and /admin/stories) — the server applies it
+ * automatically to every game this script creates.
  *
  * Run manually:
  *   node scripts/auto-weekly-games.mjs
@@ -494,7 +495,10 @@ async function main() {
       config,
       category: story.category,
       soundEffectsEnabled: true,
-      isActive: false, // draft — review in /admin/games before switching on
+      // The server overrides isActive/isFeatured for this request based on
+      // the site's auto-publish setting (toggle in /admin) — these are just
+      // the fallback/dry-run-preview values.
+      isActive: false,
       isFeatured: false,
     };
 
@@ -507,7 +511,7 @@ async function main() {
 
     try {
       const game = await createGame(token, payload);
-      console.log(`[${story.title}] Created game ID ${game.id} (inactive — review before switching on)`);
+      console.log(`[${story.title}] Created game ID ${game.id} (${game.isActive ? "live" : "inactive — review before switching on"})`);
       created.push({ story: story.title, gameType: plan.gameType, title: plan.title, id: game.id });
     } catch (err) {
       console.warn(`[${story.title}] Failed to create game:`, err.message);

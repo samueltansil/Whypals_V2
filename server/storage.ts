@@ -25,6 +25,8 @@ import {
   banners,
   type Banner,
   type InsertBanner,
+  automationSettings,
+  type AutomationSettings,
   passwordResetTokens,
   type PasswordResetToken,
   type InsertPasswordResetToken,
@@ -42,6 +44,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, sql, and, or, inArray, not, isNull } from "drizzle-orm";
+import { getISOWeek, getISOWeekYear } from "date-fns";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -126,6 +129,12 @@ export interface IStorage {
   updateUserProfile(userId: string, data: { firstName?: string; lastName?: string }): Promise<User>;
   updateUserPassword(userId: string, passwordHash: string): Promise<void>;
   updateUserNotifications(userId: string, data: { marketingEmailsOptIn?: boolean; contentAlertsOptIn?: boolean; teacherUpdatesOptIn?: boolean }): Promise<User>;
+
+  // Automation settings (weekly auto-publish on/off)
+  getAutomationSettings(): Promise<AutomationSettings>;
+  setAutoPublishEnabled(enabled: boolean): Promise<AutomationSettings>;
+  autoFeatureGame(id: number): Promise<StoryGame>;
+  featureStoryAndUnfeatureOthers(id: number): Promise<Story>;
 
   // Banners
   getBanners(): Promise<Banner[]>;
@@ -454,6 +463,69 @@ export class DatabaseStorage implements IStorage {
   async createGame(gameData: InsertStoryGame): Promise<StoryGame> {
     const [game] = await db.insert(storyGames).values(gameData).returning();
     return game;
+  }
+
+  // Automation settings — single row (id=1), created on first read if missing.
+  async getAutomationSettings(): Promise<AutomationSettings> {
+    const [existing] = await db.select().from(automationSettings).where(eq(automationSettings.id, 1));
+    if (existing) return existing;
+    const [created] = await db
+      .insert(automationSettings)
+      .values({ id: 1, autoPublishEnabled: true })
+      .onConflictDoNothing()
+      .returning();
+    if (created) return created;
+    // Lost a race with another request creating row 1 at the same time — just re-read it.
+    const [row] = await db.select().from(automationSettings).where(eq(automationSettings.id, 1));
+    return row;
+  }
+
+  async setAutoPublishEnabled(enabled: boolean): Promise<AutomationSettings> {
+    await this.getAutomationSettings(); // make sure the row exists first
+    const [updated] = await db
+      .update(automationSettings)
+      .set({ autoPublishEnabled: enabled, updatedAt: new Date() })
+      .where(eq(automationSettings.id, 1))
+      .returning();
+    return updated;
+  }
+
+  // Marks a game live + featured, and unfeatures any featured game from an
+  // earlier week's batch (games created in the SAME week stay featured
+  // together, so a multi-story weekly run doesn't unfeature its own siblings).
+  async autoFeatureGame(id: number): Promise<StoryGame> {
+    const now = new Date();
+    const weekTag = `${getISOWeekYear(now)}-W${String(getISOWeek(now)).padStart(2, "0")}`;
+    await db
+      .update(storyGames)
+      .set({ isFeatured: false })
+      .where(
+        and(
+          eq(storyGames.isFeatured, true),
+          or(isNull(storyGames.featuredWeek), sql`${storyGames.featuredWeek} <> ${weekTag}`)
+        )
+      );
+    const [game] = await db
+      .update(storyGames)
+      .set({ isActive: true, isFeatured: true, featuredWeek: weekTag, updatedAt: new Date() })
+      .where(eq(storyGames.id, id))
+      .returning();
+    return game;
+  }
+
+  // Marks a story as the featured one, unfeaturing every other story that
+  // was previously featured (only one story is ever "the" featured story).
+  async featureStoryAndUnfeatureOthers(id: number): Promise<Story> {
+    await db
+      .update(stories)
+      .set({ isFeatured: false })
+      .where(and(eq(stories.isFeatured, true), not(eq(stories.id, id))));
+    const [story] = await db
+      .update(stories)
+      .set({ isFeatured: true, updatedAt: new Date() })
+      .where(eq(stories.id, id))
+      .returning();
+    return story;
   }
 
   async updateGame(id: number, gameData: Partial<InsertStoryGame>): Promise<StoryGame> {

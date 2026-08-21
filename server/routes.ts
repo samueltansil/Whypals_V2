@@ -407,7 +407,9 @@ function generateGameForStoryInBackground(story: { id: number; title: string; ca
       const config = await buildGameConfig(plan, story);
       validateGameConfig(plan.gameType, config);
 
-      const game = await storage.createGame({
+      const settings = await storage.getAutomationSettings();
+
+      let game = await storage.createGame({
         gameType: plan.gameType,
         title: plan.title,
         description: plan.description || "",
@@ -419,11 +421,16 @@ function generateGameForStoryInBackground(story: { id: number; title: string; ca
         config,
         category: story.category,
         soundEffectsEnabled: true,
-        isActive: false,
+        isActive: settings.autoPublishEnabled,
         isFeatured: false,
       } as InsertStoryGame);
 
-      console.log(`[game] Story ${story.id}: created game #${game.id} "${plan.title}" (${plan.gameType}) — inactive, review in /admin/games.`);
+      if (settings.autoPublishEnabled) {
+        game = await storage.autoFeatureGame(game.id);
+        console.log(`[game] Story ${story.id}: created game #${game.id} "${plan.title}" (${plan.gameType}) — live & featured.`);
+      } else {
+        console.log(`[game] Story ${story.id}: created game #${game.id} "${plan.title}" (${plan.gameType}) — inactive, review in /admin/games.`);
+      }
     } catch (err: any) {
       console.error(`[game] Auto game generation failed for story ${story.id}:`, err.message);
     }
@@ -1387,6 +1394,35 @@ export async function registerRoutes(
     }
   });
 
+  // Automation settings: on = new games/weekly theme story go live & featured
+  // automatically; off = everything drops back to requiring manual review.
+  app.get('/api/admin/settings/auto-publish', async (req: any, res) => {
+    try {
+      if (!await isValidAdminSession(req)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const settings = await storage.getAutomationSettings();
+      res.json({ enabled: settings.autoPublishEnabled });
+    } catch (error) {
+      console.error("Error fetching automation settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post('/api/admin/settings/auto-publish', async (req: any, res) => {
+    try {
+      if (!await isValidAdminSession(req)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const enabled = !!req.body?.enabled;
+      const settings = await storage.setAutoPublishEnabled(enabled);
+      res.json({ enabled: settings.autoPublishEnabled });
+    } catch (error) {
+      console.error("Error updating automation settings:", error);
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
   app.get('/api/banners/active', async (req, res) => {
     try {
       const banners = await storage.getActiveBanners();
@@ -1528,7 +1564,7 @@ export async function registerRoutes(
 
       // Story just went live -> warm the audio cache in the background instead
       // of making the admin manually click "Generate Audio" and wait, and
-      // auto-generate one linked game (created inactive, review before going live).
+      // auto-generate one linked game (live/featured or draft, per the auto-publish setting).
       if (isNewlyPublished) {
         preGenerateStoryAudioInBackground(story.id, story.content);
         generateGameForStoryInBackground(story);
@@ -1538,6 +1574,27 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating story:", error);
       res.status(500).json({ message: "Failed to update story" });
+    }
+  });
+
+  // Marks a story as THE featured story, unfeaturing whichever one held that
+  // spot before (still published, just no longer featured). Used by the
+  // weekly automation and available for manual use in /admin/stories too.
+  app.post('/api/admin/stories/:id/feature', async (req: any, res) => {
+    try {
+      if (!await isValidAdminSession(req)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const id = parseInt(req.params.id);
+      const existing = await storage.getStoryById(id);
+      if (!existing) {
+        return res.status(404).json({ message: "Story not found" });
+      }
+      const story = await storage.featureStoryAndUnfeatureOthers(id);
+      res.json(story);
+    } catch (error) {
+      console.error("Error featuring story:", error);
+      res.status(500).json({ message: "Failed to feature story" });
     }
   });
 
@@ -1790,7 +1847,20 @@ export async function registerRoutes(
       }
 
       const gameData = result.data as z.infer<typeof insertStoryGameSchema>;
-      const game = await storage.createGame(gameData);
+
+      // Automation scripts authenticate with the x-admin-token header; the
+      // admin UI form uses the session cookie and sets isActive/isFeatured
+      // explicitly via its own switches, so only override for scripts.
+      const isAutomationRequest = !!req.headers['x-admin-token'];
+      const settings = isAutomationRequest ? await storage.getAutomationSettings() : null;
+      if (settings) {
+        gameData.isActive = settings.autoPublishEnabled;
+      }
+
+      let game = await storage.createGame(gameData);
+      if (settings?.autoPublishEnabled) {
+        game = await storage.autoFeatureGame(game.id);
+      }
       res.status(201).json(game);
     } catch (error) {
       console.error("Error creating game:", error);

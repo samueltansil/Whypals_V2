@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
+import { AutoPublishToggle } from "@/components/AutoPublishToggle";
 import logo from "@assets/whypals-logo.png";
 import type { StoryGame, PuzzleGameConfig, WhackGameConfig, MatchGameConfig, QuizGameConfig, TimelineGameConfig, PollGameConfig, FillBlankGameConfig, TrueFalseGameConfig, PictureScrambleGameConfig, GuessNumberGameConfig, OddOneOutGameConfig, EmojiDecoderGameConfig } from "@shared/schema";
 import { CATEGORIES as ALL_CATEGORIES } from "@/lib/data";
@@ -1904,9 +1905,12 @@ export default function AdminGames() {
               </p>
             </div>
           </div>
-          <Button onClick={() => setIsCreating(true)}>
-            <Plus className="w-4 h-4 mr-2" /> New Game
-          </Button>
+          <div className="flex items-center gap-3">
+            <AutoPublishToggle />
+            <Button onClick={() => setIsCreating(true)}>
+              <Plus className="w-4 h-4 mr-2" /> New Game
+            </Button>
+          </div>
         </div>
 
         <div className="flex items-center gap-4 mb-6">

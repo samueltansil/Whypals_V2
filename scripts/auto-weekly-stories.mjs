@@ -294,6 +294,29 @@ async function adminLogin() {
   return data.token;
 }
 
+async function getAutoPublishEnabled(token) {
+  try {
+    const res = await fetch(`${WHYPALS_BASE_URL}/api/admin/settings/auto-publish`, {
+      headers: { "x-admin-token": token },
+    });
+    if (!res.ok) throw new Error(`${res.status}: ${await res.text()}`);
+    const data = await res.json();
+    return !!data.enabled;
+  } catch (err) {
+    console.warn("[settings] Failed to read auto-publish setting, defaulting to manual review:", err.message);
+    return false;
+  }
+}
+
+async function featureStory(token, id) {
+  const res = await fetch(`${WHYPALS_BASE_URL}/api/admin/stories/${id}/feature`, {
+    method: "POST",
+    headers: { "x-admin-token": token },
+  });
+  if (!res.ok) throw new Error(`Feature story failed ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
 async function uploadThumbnail(token, imageUrl) {
   const imgRes = await fetch(imageUrl);
   if (!imgRes.ok) throw new Error(`Failed to download thumbnail image: ${imgRes.status}`);
@@ -564,7 +587,7 @@ async function manageThemeBanner(token, theme) {
 }
 
 // --- one full story: generate -> thumbnail -> upload -> create draft ---
-async function buildAndPostStory({ token, categories, topicHint, themeContext, label }) {
+async function buildAndPostStory({ token, categories, topicHint, themeContext, label, autoPublish = false }) {
   console.log(`\n[${label}] Generating story...`);
   const story = await generateStory(categories[0], topicHint, themeContext);
   console.log(`[${label}] Title: ${story.title}`);
@@ -591,11 +614,15 @@ async function buildAndPostStory({ token, categories, topicHint, themeContext, l
     thumbnailCredit,
     readTime: story.readTime || "4 min read",
     isFeatured: false,
-    isPublished: false, // always create as a draft for human review
+    isPublished: autoPublish, // draft for human review, unless this is the auto-published weekly theme story
   };
 
   const created = await createStory(token, payload);
-  console.log(`[${label}] Created draft ID ${created.id}`);
+  console.log(
+    autoPublish
+      ? `[${label}] Auto-published ID ${created.id}`
+      : `[${label}] Created draft ID ${created.id}`
+  );
   return created;
 }
 
@@ -610,6 +637,13 @@ async function main() {
 
   console.log("Logging into WhyPals admin...");
   const token = await adminLogin();
+
+  const autoPublishEnabled = await getAutoPublishEnabled(token);
+  console.log(
+    autoPublishEnabled
+      ? "[settings] Auto-publish is ON — this week's theme story will publish & feature itself automatically."
+      : "[settings] Auto-publish is OFF — all stories (including the theme story) will be created as drafts for manual review."
+  );
 
   // Theme banner is independent of the story batch — do it first so a
   // banner failure/refusal never gets skipped due to an earlier crash.
@@ -646,20 +680,34 @@ async function main() {
     newTitles.push(story.title);
   }
 
-  // 3 themed stories, if a theme is scheduled for today
+  // 3 themed stories, if a theme is scheduled for today. The first one is
+  // this week's "theme story" — when auto-publish is on, it skips the draft
+  // step and becomes the site's featured story (unfeaturing last week's).
   if (theme) {
     console.log(`\nPicking 3 angles for theme "${theme}"...`);
     const angles = await pickThemeAngles(theme, [...recentTitles, ...newTitles]);
-    for (const angle of angles) {
+    for (let i = 0; i < angles.length; i++) {
+      const angle = angles[i];
+      const isPrimaryThemeStory = i === 0 && autoPublishEnabled;
       const story = await buildAndPostStory({
         token,
         categories: ["Weekly Theme", angle.bestFitCategory],
         topicHint: angle.topic,
         themeContext: theme,
         label: `theme/${angle.bestFitCategory}`,
+        autoPublish: isPrimaryThemeStory,
       });
       created.push(story);
       newTitles.push(story.title);
+
+      if (isPrimaryThemeStory) {
+        console.log(`[story] Featuring this week's theme story (#${story.id}), unfeaturing last week's...`);
+        try {
+          await featureStory(token, story.id);
+        } catch (err) {
+          console.warn("[story] Failed to auto-feature theme story (continuing):", err.message);
+        }
+      }
     }
   }
 

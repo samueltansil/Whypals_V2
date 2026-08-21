@@ -233,6 +233,10 @@ export const storyGames = pgTable("story_games", {
   soundEffectsEnabled: boolean("sound_effects_enabled").default(true).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
   isFeatured: boolean("is_featured").default(false).notNull(),
+  // ISO week tag (e.g. "2026-W34") set when a game is auto-featured, so a new
+  // week's batch of auto-published games can replace the previous week's
+  // featured batch without unfeaturing siblings created in the same run.
+  featuredWeek: varchar("featured_week", { length: 10 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => [
@@ -425,6 +429,17 @@ export const banners = pgTable("banners", {
 
 export type InsertBanner = typeof banners.$inferInsert;
 export type Banner = typeof banners.$inferSelect;
+
+// Single-row table (id is always 1) controlling whether weekly automation
+// (auto-generated games, and the weekly theme story) goes live immediately
+// or waits in a draft/inactive state for manual review in /admin.
+export const automationSettings = pgTable("automation_settings", {
+  id: integer("id").primaryKey().default(1),
+  autoPublishEnabled: boolean("auto_publish_enabled").default(true).notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type AutomationSettings = typeof automationSettings.$inferSelect;
 
 export const insertBannerSchema = createInsertSchema(banners).omit({
   createdAt: true,

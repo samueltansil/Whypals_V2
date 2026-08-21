@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@assets/whypals-logo.png";
-import type { StoryGame, PuzzleGameConfig, WhackGameConfig, MatchGameConfig, QuizGameConfig, TimelineGameConfig, PollGameConfig } from "@shared/schema";
+import type { StoryGame, PuzzleGameConfig, WhackGameConfig, MatchGameConfig, QuizGameConfig, TimelineGameConfig, PollGameConfig, FillBlankGameConfig, TrueFalseGameConfig, PictureScrambleGameConfig } from "@shared/schema";
 import { CATEGORIES as ALL_CATEGORIES } from "@/lib/data";
 
 const GAME_TYPES = [
@@ -23,6 +23,9 @@ const GAME_TYPES = [
   { value: "quiz", label: "Quiz", icon: "❓" },
   { value: "timeline", label: "Timeline", icon: "📅" },
   { value: "poll", label: "Poll", icon: "📊" },
+  { value: "fillblank", label: "Fill in the Blank", icon: "✏️" },
+  { value: "truefalse", label: "True/False Speed Round", icon: "⚡" },
+  { value: "scramble", label: "Picture Word Scramble", icon: "🖼️" },
 ];
 
 const CATEGORIES = ALL_CATEGORIES.map(c => c.id);
@@ -817,7 +820,214 @@ function PollConfigEditor({ config, onChange }: { config: PollGameConfig; onChan
   );
 }
 
-function GameForm({ 
+function FillBlankConfigEditor({ config, onChange }: { config: FillBlankGameConfig; onChange: (config: FillBlankGameConfig) => void }) {
+  const blanks = config.blanks || [];
+
+  const addBlank = () => {
+    onChange({
+      ...config,
+      blanks: [...blanks, { id: `blank-${Date.now()}`, sentence: "", options: ["", "", "", ""], correctIndex: 0, explanation: "" }]
+    });
+  };
+
+  const updateBlank = (index: number, field: string, value: any) => {
+    const newBlanks = [...blanks];
+    newBlanks[index] = { ...newBlanks[index], [field]: value };
+    onChange({ ...config, blanks: newBlanks });
+  };
+
+  const updateOption = (bIndex: number, optIndex: number, value: string) => {
+    const newBlanks = [...blanks];
+    newBlanks[bIndex].options[optIndex] = value;
+    onChange({ ...config, blanks: newBlanks });
+  };
+
+  const removeBlank = (index: number) => {
+    onChange({ ...config, blanks: blanks.filter((_, i) => i !== index) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label>Fill-in-the-Blank Sentences</Label>
+        <Button type="button" variant="outline" size="sm" onClick={addBlank}>
+          <Plus className="w-4 h-4 mr-1" /> Add Sentence
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">Write the blank as three underscores, e.g. "Seahorses live in ___ water."</p>
+      <div className="space-y-4 max-h-96 overflow-y-auto">
+        {blanks.map((b, bIndex) => (
+          <div key={b.id} className="p-4 bg-muted/50 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Sentence {bIndex + 1}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeBlank(bIndex)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <Textarea
+              value={b.sentence}
+              onChange={(e) => updateBlank(bIndex, 'sentence', e.target.value)}
+              placeholder="Seahorses live in ___ water."
+              rows={2}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              {b.options.map((opt, optIndex) => (
+                <div key={optIndex} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name={`correct-blank-${bIndex}`}
+                    checked={b.correctIndex === optIndex}
+                    onChange={() => updateBlank(bIndex, 'correctIndex', optIndex)}
+                  />
+                  <Input
+                    value={opt}
+                    onChange={(e) => updateOption(bIndex, optIndex, e.target.value)}
+                    placeholder={`Option ${String.fromCharCode(65 + optIndex)}`}
+                    className="flex-1"
+                  />
+                </div>
+              ))}
+            </div>
+            <Input
+              value={b.explanation || ""}
+              onChange={(e) => updateBlank(bIndex, 'explanation', e.target.value)}
+              placeholder="Explanation (shown after answer)"
+            />
+          </div>
+        ))}
+      </div>
+      {blanks.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-4">Add sentences with a missing word</p>
+      )}
+    </div>
+  );
+}
+
+function TrueFalseConfigEditor({ config, onChange }: { config: TrueFalseGameConfig; onChange: (config: TrueFalseGameConfig) => void }) {
+  const statements = config.statements || [];
+
+  const addStatement = () => {
+    onChange({
+      ...config,
+      statements: [...statements, { id: `stmt-${Date.now()}`, statement: "", isTrue: true, explanation: "" }]
+    });
+  };
+
+  const updateStatement = (index: number, field: string, value: any) => {
+    const newStatements = [...statements];
+    newStatements[index] = { ...newStatements[index], [field]: value };
+    onChange({ ...config, statements: newStatements });
+  };
+
+  const removeStatement = (index: number) => {
+    onChange({ ...config, statements: statements.filter((_, i) => i !== index) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label>True/False Statements</Label>
+        <Button type="button" variant="outline" size="sm" onClick={addStatement}>
+          <Plus className="w-4 h-4 mr-1" /> Add Statement
+        </Button>
+      </div>
+      <div className="space-y-2">
+        <Label>Seconds per Statement</Label>
+        <Input
+          type="number"
+          value={config.secondsPerStatement ?? 8}
+          onChange={(e) => onChange({ ...config, secondsPerStatement: parseInt(e.target.value) || 8 })}
+          className="w-32"
+        />
+      </div>
+      <div className="space-y-4 max-h-96 overflow-y-auto">
+        {statements.map((s, index) => (
+          <div key={s.id} className="p-4 bg-muted/50 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Statement {index + 1}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeStatement(index)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <Textarea
+              value={s.statement}
+              onChange={(e) => updateStatement(index, 'statement', e.target.value)}
+              placeholder="Octopuses have three hearts."
+              rows={2}
+            />
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name={`istrue-${index}`}
+                  checked={s.isTrue === true}
+                  onChange={() => updateStatement(index, 'isTrue', true)}
+                />
+                True
+              </label>
+              <label className="flex items-center gap-2">
+                <input
+                  type="radio"
+                  name={`istrue-${index}`}
+                  checked={s.isTrue === false}
+                  onChange={() => updateStatement(index, 'isTrue', false)}
+                />
+                False
+              </label>
+            </div>
+            <Input
+              value={s.explanation || ""}
+              onChange={(e) => updateStatement(index, 'explanation', e.target.value)}
+              placeholder="Explanation (shown after answer)"
+            />
+          </div>
+        ))}
+      </div>
+      {statements.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-4">Add true/false statements</p>
+      )}
+    </div>
+  );
+}
+
+function PictureScrambleConfigEditor({ config, onChange }: { config: PictureScrambleGameConfig; onChange: (config: PictureScrambleGameConfig) => void }) {
+  return (
+    <div className="space-y-4">
+      <ImageUploadField
+        label="Picture"
+        value={config.imageUrl || ""}
+        onChange={(url) => onChange({ ...config, imageUrl: url })}
+        placeholder="https://example.com/image.jpg"
+      />
+      <div className="space-y-2">
+        <Label>Word to Unscramble</Label>
+        <Input
+          value={config.word || ""}
+          onChange={(e) => onChange({ ...config, word: e.target.value.toUpperCase() })}
+          placeholder="SEAHORSE"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Clue (optional hint)</Label>
+        <Input
+          value={config.clue || ""}
+          onChange={(e) => onChange({ ...config, clue: e.target.value })}
+          placeholder="This ocean animal's dads carry the babies!"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Completion Message</Label>
+        <Input
+          value={config.winMessage || ""}
+          onChange={(e) => onChange({ ...config, winMessage: e.target.value })}
+          placeholder="You got it!"
+        />
+      </div>
+    </div>
+  );
+}
+
+function GameForm({
   game, 
   onSave, 
   onCancel, 
@@ -861,6 +1071,12 @@ function GameForm({
         return { events: [], winMessage: "Perfect Order!" };
       case "poll":
         return { questions: [], winMessage: "Poll Complete! Thanks for voting." };
+      case "fillblank":
+        return { blanks: [], winMessage: "Great reading!" };
+      case "truefalse":
+        return { statements: [], secondsPerStatement: 8, winMessage: "Speedy work!" };
+      case "scramble":
+        return { imageUrl: "", word: "", clue: "", winMessage: "You got it!" };
       default:
         return {};
     }
@@ -1104,6 +1320,15 @@ function GameForm({
           )}
           {gameType === "poll" && (
             <PollConfigEditor config={config as PollGameConfig} onChange={setConfig} />
+          )}
+          {gameType === "fillblank" && (
+            <FillBlankConfigEditor config={config as FillBlankGameConfig} onChange={setConfig} />
+          )}
+          {gameType === "truefalse" && (
+            <TrueFalseConfigEditor config={config as TrueFalseGameConfig} onChange={setConfig} />
+          )}
+          {gameType === "scramble" && (
+            <PictureScrambleConfigEditor config={config as PictureScrambleGameConfig} onChange={setConfig} />
           )}
         </TabsContent>
       </Tabs>

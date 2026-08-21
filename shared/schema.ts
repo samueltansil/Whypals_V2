@@ -219,7 +219,7 @@ export const updateStorySchema = createInsertSchema(stories).omit({
 // Game templates linked to stories by title for scalability
 export const storyGames = pgTable("story_games", {
   id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
-  gameType: varchar("game_type", { length: 50 }).notNull(), // puzzle, match, quiz, whack, timeline, poll, fillblank, truefalse, scramble
+  gameType: varchar("game_type", { length: 50 }).notNull(), // puzzle, quiz, whack, timeline, poll, fillblank, truefalse, scramble, guessnumber, oddoneout, emojidecoder ("match" is a legacy type kept for old games only — no longer offered for new ones)
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   thumbnail: text("thumbnail"),
@@ -358,6 +358,36 @@ export interface PictureScrambleGameConfig {
   imageUrl: string;
   word: string; // the word to unscramble, shown as scrambled letter tiles
   clue?: string;
+  winMessage?: string;
+}
+
+export interface GuessNumberGameConfig {
+  question: string; // e.g. "How many times per second can a woodpecker peck?"
+  answer: number;
+  unit?: string; // e.g. "pecks per second"
+  maxGuesses?: number; // default 6
+  funFactAfter?: string;
+  winMessage?: string;
+}
+
+export interface OddOneOutGameConfig {
+  rounds: Array<{
+    id: string;
+    statements: string[]; // exactly 4 — one of them (fakeIndex) is made up
+    fakeIndex: number;
+    explanation?: string;
+  }>;
+  winMessage?: string;
+}
+
+export interface EmojiDecoderGameConfig {
+  rounds: Array<{
+    id: string;
+    emojiClue: string; // e.g. "🦔🌰❄️"
+    options: string[];
+    correctIndex: number;
+    explanation?: string;
+  }>;
   winMessage?: string;
 }
 

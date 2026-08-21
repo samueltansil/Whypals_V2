@@ -198,16 +198,21 @@ async function generateStoryFromTopic(topic: string): Promise<{
   readTime: string;
   imageSearchTerms: string[];
 }> {
-  const prompt = `You write short, engaging, age-appropriate news stories for kids (ages 7-12) for an educational platform called WhyPals.
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+
+  const prompt = `You write short, engaging news stories for young kids (ages 6-9, so keep it simpler than a typical "kids' news" tone) for an educational platform called WhyPals.
+
+Today's date is ${today}.
 
 A WhyPals editor typed this one-sentence topic and wants a story about what's actually happening right now: "${topic}"
 
-Use the web_search tool to find current, real, verifiable information about this topic BEFORE writing anything — do not rely on what you already know, since it may be out of date. Then write ONE story that explains it to a curious 7-12 year old, grounded in what you actually found.
+Use the web_search tool to find current, real, verifiable information about this topic BEFORE writing anything — do not rely on what you already know, since it may be out of date. Search for the MOST RECENT news you can find on this topic. Focus the story on what's new or happening lately (the last few days/weeks) — only mention older background facts briefly, and only if a 6-9 year old genuinely needs them to understand what's new. Don't write a story that's really just old history dressed up as "the latest news."
 
 Rules:
-- Tone: warm, curious, simple vocabulary, short sentences, a sense of wonder — but stay factual and even-handed, especially if the topic is political, an election, or otherwise sensitive. Explain different sides fairly if the topic is contested; never take a side, never predict an outcome, never use loaded language.
+- Reading level: ages 6-9 specifically, not older. Short, simple sentences (aim for under 12 words each). Everyday words a 2nd grader knows — if a bigger word is unavoidable (like a job title or place name), briefly explain it in the same sentence. Avoid dense civics/political vocabulary (e.g. don't just say "collective bargaining" or "housing agenda" without unpacking it simply). One idea per sentence.
+- Tone: warm, curious, a sense of wonder — but stay factual and even-handed, especially if the topic is political, an election, or otherwise sensitive. Explain different sides fairly if the topic is contested; never take a side, never predict an outcome, never use loaded language.
 - No violence, no scary or graphic content, no ads, nothing inappropriate for a young child.
-- Length: 4-7 short paragraphs, separated by a blank line (double newline). Plain paragraphs only — no markdown formatting (no #, no **, no bullet lists).
+- Length: 4-7 short paragraphs, separated by a blank line (double newline). Plain paragraphs only — no markdown formatting (no #, no **, no bullet lists), and absolutely no citation markup, footnotes, source tags, or anything like <cite>...</cite> — write it as completely plain, clean prose with nothing but the words a kid would read.
 - Also write a one-sentence "excerpt" (max 160 characters) that teases the story.
 - Pick the SINGLE best-fit category from exactly this list: ${TOPIC_STORY_CATEGORIES.join(", ")}.
 - Also suggest 2-3 short English keywords (max 2 words each) for a stock photo search — concrete, visual things like "voting booth" or "capitol building", not abstract concepts.
@@ -262,6 +267,13 @@ Respond with ONLY valid JSON, no markdown code fences, in this exact shape:
   if (!TOPIC_STORY_CATEGORIES.includes(plan.category)) {
     plan.category = "World";
   }
+  // Safety net: web-search-grounded responses can carry inline citation
+  // markup (e.g. <cite index="1-2">...</cite>) even when told not to —
+  // strip the tags but keep the text they wrap.
+  const stripCitations = (s: string) => typeof s === "string" ? s.replace(/<\/?cite[^>]*>/gi, "") : s;
+  plan.title = stripCitations(plan.title);
+  plan.excerpt = stripCitations(plan.excerpt);
+  plan.content = stripCitations(plan.content);
   return plan;
 }
 

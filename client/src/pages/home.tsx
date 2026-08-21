@@ -223,7 +223,7 @@ export default function Home() {
         {/* Hero Section - Featured Stories & Banners Slideshow */}
         {activeCategory === "All" && allFeaturedItems.length > 0 && currentFeaturedItem && (
           <section className="mb-6 relative">
-            <div className="relative rounded-2xl overflow-hidden bg-white shadow-lg aspect-[40/21] md:aspect-auto md:h-[340px] lg:h-[400px]">
+            <div className={`relative rounded-2xl overflow-hidden bg-white shadow-lg md:aspect-auto md:h-[340px] lg:h-[400px] ${currentFeaturedItem.type === 'banner' ? 'aspect-[40/21]' : ''}`}>
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentSlide}
@@ -236,20 +236,11 @@ export default function Home() {
                   {currentFeaturedItem.type === 'story' ? (
                     <Link href={`/story/${currentFeaturedItem.data.id}`} className="block h-full">
                       <div className="flex flex-col md:grid md:grid-cols-2 gap-0 cursor-pointer group h-full md:h-full">
-                        <div className="order-2 md:order-1 flex-1 p-4 md:p-6 flex flex-col justify-start md:justify-center md:h-full bg-gradient-to-br from-white to-blue-50">
-                          <h1 className="font-heading text-xl md:text-2xl lg:text-3xl font-bold leading-tight mb-3 text-foreground line-clamp-2">
-                            {currentFeaturedItem.data.title}
-                          </h1>
-                          <p className="text-sm md:text-base text-muted-foreground mb-4 leading-relaxed max-w-md line-clamp-2">
-                            {currentFeaturedItem.data.excerpt}
-                          </p>
-                          <Button size="sm" className="mt-auto w-fit rounded-full text-sm px-6 h-9 shadow-md shadow-primary/20" data-testid="button-hero-read">
-                            Read the Full Story
-                          </Button>
-                        </div>
-                        <div className="order-1 md:order-2 relative h-[60%] md:h-full overflow-hidden">
-                          <img 
-                            src={currentFeaturedItem.data.thumbnail} 
+                        {/* Narrow/stacked layout: image on top, no description — just the
+                            title, so the thumbnail gets most of the space and stays clear. */}
+                        <div className="order-1 md:order-2 relative aspect-[16/9] md:aspect-auto md:h-full overflow-hidden">
+                          <img
+                            src={currentFeaturedItem.data.thumbnail}
                             alt={currentFeaturedItem.data.title}
                             className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                           />
@@ -257,6 +248,17 @@ export default function Home() {
                           <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold text-xs tracking-wide">
                             FEATURED STORY
                           </span>
+                        </div>
+                        <div className="order-2 md:order-1 flex-1 p-4 md:p-6 flex flex-col justify-start md:justify-center md:h-full bg-gradient-to-br from-white to-blue-50">
+                          <h1 className="font-heading text-lg md:text-2xl lg:text-3xl font-bold leading-tight mb-2 md:mb-3 text-foreground line-clamp-2">
+                            {currentFeaturedItem.data.title}
+                          </h1>
+                          <p className="hidden md:block text-sm md:text-base text-muted-foreground mb-4 leading-relaxed max-w-md line-clamp-2">
+                            {currentFeaturedItem.data.excerpt}
+                          </p>
+                          <Button size="sm" className="mt-2 md:mt-auto w-fit rounded-full text-sm px-6 h-9 shadow-md shadow-primary/20" data-testid="button-hero-read">
+                            Read the Full Story
+                          </Button>
                         </div>
                       </div>
                     </Link>

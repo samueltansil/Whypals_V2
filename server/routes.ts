@@ -1960,6 +1960,3 @@ export async function registerRoutes(
   return httpServer;
 }
  
-
-
-Downloaded routes.ts Show in Finder

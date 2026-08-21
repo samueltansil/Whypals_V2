@@ -1,5 +1,5 @@
 import { Link, useParams, useLocation } from "wouter";
-import { ArrowLeft, Play, Trophy, Clock, Users, Gamepad2, CheckCircle, Star, Puzzle, Target, Sparkles, HelpCircle, Calendar, BarChart2, PenLine, Zap, ImageIcon } from "lucide-react";
+import { ArrowLeft, Play, Trophy, Clock, Users, Gamepad2, CheckCircle, Star, Puzzle, Target, Sparkles, HelpCircle, Calendar, BarChart2, PenLine, Zap, ImageIcon, Hash, Eye, Smile } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@assets/whypals-logo.png";
 import { motion } from "framer-motion";
@@ -17,10 +17,16 @@ import PollGame from "@/components/games/PollGame";
 import FillBlankGame from "@/components/games/FillBlankGame";
 import TrueFalseGame from "@/components/games/TrueFalseGame";
 import PictureScrambleGame from "@/components/games/PictureScrambleGame";
+import GuessNumberGame from "@/components/games/GuessNumberGame";
+import OddOneOutGame from "@/components/games/OddOneOutGame";
+import EmojiDecoderGame from "@/components/games/EmojiDecoderGame";
 import { useGameAudio } from "@/hooks/useGameAudio";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useAuth } from "@/hooks/useAuth";
 
+// NOTE: "match" (Memory Match) is kept here so any existing match-type games
+// already in the database still play correctly — it's no longer offered when
+// creating a new game (see admin-games.tsx), but old ones stay fully working.
 const GAME_TYPE_ICONS: Record<string, typeof Puzzle> = {
   puzzle: Puzzle,
   whack: Target,
@@ -31,6 +37,9 @@ const GAME_TYPE_ICONS: Record<string, typeof Puzzle> = {
   fillblank: PenLine,
   truefalse: Zap,
   scramble: ImageIcon,
+  guessnumber: Hash,
+  oddoneout: Eye,
+  emojidecoder: Smile,
 };
 
 const GAME_TYPE_COLORS: Record<string, string> = {
@@ -43,6 +52,9 @@ const GAME_TYPE_COLORS: Record<string, string> = {
   fillblank: "bg-cyan-100 text-cyan-600",
   truefalse: "bg-yellow-100 text-yellow-600",
   scramble: "bg-pink-100 text-pink-600",
+  guessnumber: "bg-lime-100 text-lime-600",
+  oddoneout: "bg-rose-100 text-rose-600",
+  emojidecoder: "bg-amber-100 text-amber-600",
 };
 
 export default function GamePreview() {
@@ -262,6 +274,36 @@ export default function GamePreview() {
           )}
           {game.gameType === "scramble" && (
             <PictureScrambleGame
+              config={game.config as any}
+              onComplete={handleGameComplete}
+              onBack={handleBackToGames}
+              backgroundMusicUrl={(game as any).backgroundMusicUrl}
+              soundEffectsEnabled={(game as any).soundEffectsEnabled !== false}
+              pointsReward={game.pointsReward || 0}
+            />
+          )}
+          {game.gameType === "guessnumber" && (
+            <GuessNumberGame
+              config={game.config as any}
+              onComplete={handleGameComplete}
+              onBack={handleBackToGames}
+              backgroundMusicUrl={(game as any).backgroundMusicUrl}
+              soundEffectsEnabled={(game as any).soundEffectsEnabled !== false}
+              pointsReward={game.pointsReward || 0}
+            />
+          )}
+          {game.gameType === "oddoneout" && (
+            <OddOneOutGame
+              config={game.config as any}
+              onComplete={handleGameComplete}
+              onBack={handleBackToGames}
+              backgroundMusicUrl={(game as any).backgroundMusicUrl}
+              soundEffectsEnabled={(game as any).soundEffectsEnabled !== false}
+              pointsReward={game.pointsReward || 0}
+            />
+          )}
+          {game.gameType === "emojidecoder" && (
+            <EmojiDecoderGame
               config={game.config as any}
               onComplete={handleGameComplete}
               onBack={handleBackToGames}

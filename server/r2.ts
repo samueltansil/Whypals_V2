@@ -154,6 +154,41 @@ export async function getFileFromR2(key: string): Promise<Buffer | null> {
   }
 }
 
+// Streams an object straight from R2 instead of handing back a signed URL —
+// used by /api/images/:key so the browser doesn't have to make a second
+// round trip (DNS + TLS + request) to a different origin for every image.
+export async function getImageStreamFromR2(key: string): Promise<{
+  stream: NodeJS.ReadableStream;
+  contentType?: string;
+  contentLength?: number;
+} | null> {
+  if (!R2_BUCKET_NAME) {
+    return null;
+  }
+
+  try {
+    const command = new GetObjectCommand({
+      Bucket: R2_BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await r2Client.send(command);
+    if (!response.Body) return null;
+
+    return {
+      stream: response.Body as unknown as NodeJS.ReadableStream,
+      contentType: response.ContentType,
+      contentLength: response.ContentLength,
+    };
+  } catch (error: any) {
+    if (error.name === 'NoSuchKey' || error.$metadata?.httpStatusCode === 404) {
+      return null;
+    }
+    console.error("Error streaming file from R2:", error);
+    throw error;
+  }
+}
+
 export async function getImageSignedUrl(key: string, expiresIn: number = 86400): Promise<string> {
   if (!R2_BUCKET_NAME) {
     throw new Error("R2_BUCKET_NAME not configured");

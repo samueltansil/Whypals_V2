@@ -511,9 +511,14 @@ async function composeBannerImage(photoBuffer, theme, style) {
         font-size="${fontSize}" letter-spacing="1" fill="${textColor}" filter="url(#shadow)">${escapeXml(theme)}</text>
 </svg>`;
 
+  // JPEG, not PNG — this is a photo with a text/gradient overlay flattened
+  // on top (no transparency needed in the output), and PNG's lossless
+  // compression makes photographic images several times larger than a
+  // JPEG at a quality no one can tell apart. That extra weight on the
+  // site's above-the-fold banner was making it noticeably slow to load.
   return sharp(fitted)
     .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
-    .png()
+    .jpeg({ quality: 85, mozjpeg: true })
     .toBuffer();
 }
 
@@ -559,7 +564,7 @@ async function manageThemeBanner(token, theme) {
     const finalImage = await composeBannerImage(photoBuffer, theme, style);
 
     console.log("[banner] Uploading banner image...");
-    const imageUrl = await uploadBannerImage(token, finalImage, "image/png");
+    const imageUrl = await uploadBannerImage(token, finalImage, "image/jpeg");
 
     const last = loadLastBanner();
     if (last?.bannerId) {

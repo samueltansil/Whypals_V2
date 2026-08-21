@@ -223,7 +223,7 @@ export default function Home() {
         {/* Hero Section - Featured Stories & Banners Slideshow */}
         {activeCategory === "All" && allFeaturedItems.length > 0 && currentFeaturedItem && (
           <section className="mb-6 relative">
-            <div className="relative rounded-2xl overflow-hidden bg-white shadow-lg aspect-[4/3] md:aspect-auto md:h-[340px] lg:h-[400px]">
+            <div className="relative rounded-2xl overflow-hidden bg-white shadow-lg aspect-[40/21] md:aspect-auto md:h-[340px] lg:h-[400px]">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentSlide}
@@ -268,7 +268,7 @@ export default function Home() {
                       <img
                         src={currentFeaturedItem.data.imageUrl}
                         alt={currentFeaturedItem.data.title}
-                        className="absolute inset-0 w-full h-full object-cover object-bottom md:object-center scale-110 md:scale-100"
+                        className="absolute inset-0 w-full h-full object-cover object-bottom md:object-center"
                       />
                       <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
                       <div className="absolute top-4 left-4 flex items-center gap-2">

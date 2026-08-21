@@ -240,7 +240,7 @@ export default function Games() {
       <main className="container mx-auto px-4 py-8 flex-grow">
         <ActivityTracker />
 
-        <div className="relative mb-8 rounded-2xl overflow-hidden bg-white shadow-lg aspect-[4/3] md:aspect-auto md:h-[340px] lg:h-[400px]">
+        <div className="relative mb-8 rounded-2xl overflow-hidden bg-white shadow-lg aspect-[40/21] md:aspect-auto md:h-[340px] lg:h-[400px]">
           {allFeaturedItems.length > 0 ? (
             <>
               <AnimatePresence mode="wait">
@@ -310,7 +310,7 @@ export default function Games() {
                            <img
                              src={banner.imageUrl}
                              alt={banner.title}
-                             className="absolute inset-0 w-full h-full object-cover object-bottom md:object-center scale-110 md:scale-100"
+                             className="absolute inset-0 w-full h-full object-cover object-bottom md:object-center"
                            />
                            <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
                            <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-pink-100 text-pink-700 font-bold text-xs tracking-wide">

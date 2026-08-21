@@ -140,6 +140,10 @@ export const stories = pgTable("stories", {
   isPublished: boolean("is_published").default(false).notNull(),
   publishedAt: timestamp("published_at"),
   authorId: varchar("author_id").references(() => users.id),
+  // When true, publishing this story should NOT auto-generate a linked game —
+  // set when an admin explicitly declined a game at creation time (e.g. the
+  // "Generate from Topic" flow's "Also generate a game" switch, left off).
+  skipAutoGame: boolean("skip_auto_game").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

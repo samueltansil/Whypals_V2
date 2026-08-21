@@ -25,7 +25,7 @@ import {
 } from "@shared/schema";
 import { z } from "zod";
 import { fromZodError } from "zod-validation-error";
-import { listVideos, getVideoSignedUrl, getImageUploadUrl, getImageSignedUrl, uploadImageToR2, uploadFileToR2, getFileFromR2 } from "./r2";
+import { listVideos, getVideoSignedUrl, getImageUploadUrl, getImageStreamFromR2, uploadImageToR2, uploadFileToR2, getFileFromR2 } from "./r2";
 import multer from "multer";
 
 const BCRYPT_ROUNDS = 12;
@@ -1599,6 +1599,13 @@ export async function registerRoutes(
   // Allowed image folders for access
   const ALLOWED_IMAGE_FOLDERS = ['story-thumbnails', 'game-images', 'story-content', 'video-thumbnails', 'banners'];
 
+  // Streams the image straight from R2 instead of redirecting to a signed
+  // URL — a redirect forces the browser into a second full round trip (DNS +
+  // TLS + request) to a different origin for every single image on the
+  // site, which is slow, especially for the above-the-fold banner. Proxying
+  // it here means one connection to whypals.com, and the long Cache-Control
+  // lets the browser skip re-fetching entirely after the first load (keys
+  // are timestamp-based, so a given key's contents never change).
   app.get('/api/images/:key(*)', async (req, res) => {
     try {
       const key = req.params.key;
@@ -1606,11 +1613,26 @@ export async function registerRoutes(
       if (!isAllowed) {
         return res.status(403).json({ message: "Access denied" });
       }
-      const signedUrl = await getImageSignedUrl(key);
-      res.redirect(signedUrl);
+      const file = await getImageStreamFromR2(key);
+      if (!file) {
+        return res.status(404).json({ message: "Image not found" });
+      }
+      res.setHeader("Content-Type", file.contentType || "application/octet-stream");
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      if (file.contentLength) {
+        res.setHeader("Content-Length", String(file.contentLength));
+      }
+      const stream = file.stream as any;
+      stream.on("error", (err: any) => {
+        console.error("Error streaming image from R2:", err);
+        if (!res.headersSent) res.status(500).end();
+      });
+      stream.pipe(res);
     } catch (error) {
       console.error("Error fetching image:", error);
-      res.status(500).json({ message: "Failed to fetch image" });
+      if (!res.headersSent) {
+        res.status(500).json({ message: "Failed to fetch image" });
+      }
     }
   });
 
@@ -1674,6 +1696,9 @@ export async function registerRoutes(
         isFeatured: false,
         isPublished: false, // always a draft — review the AI's write-up of current events before it goes live
         publishedAt: null,
+        // If the admin didn't ask for a game now, don't let a later publish
+        // silently create one behind their back either.
+        skipAutoGame: !generateGame,
       } as InsertStory);
 
       console.log(`[topic-story] Created draft story #${story.id}: "${story.title}"`);
@@ -1710,7 +1735,9 @@ export async function registerRoutes(
       // Created already published (e.g. auto-publish flows) -> warm the audio cache in the background.
       if (story.isPublished) {
         preGenerateStoryAudioInBackground(story.id, story.content);
-        generateGameForStoryInBackground(story);
+        if (!story.skipAutoGame) {
+          generateGameForStoryInBackground(story);
+        }
       }
 
       res.status(201).json(story);
@@ -1751,7 +1778,9 @@ export async function registerRoutes(
       // auto-generate one linked game (live/featured or draft, per the auto-publish setting).
       if (isNewlyPublished) {
         preGenerateStoryAudioInBackground(story.id, story.content);
-        generateGameForStoryInBackground(story);
+        if (!story.skipAutoGame) {
+          generateGameForStoryInBackground(story);
+        }
       }
 
       res.json(story);

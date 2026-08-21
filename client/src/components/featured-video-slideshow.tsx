@@ -54,7 +54,7 @@ export function FeaturedVideoSlideshow() {
   const currentItem = allFeaturedItems[currentSlide];
 
   return (
-    <div className="relative mb-8 rounded-2xl overflow-hidden bg-white shadow-lg aspect-[4/3] md:aspect-auto md:h-[340px] lg:h-[400px]">
+    <div className="relative mb-8 rounded-2xl overflow-hidden bg-white shadow-lg aspect-[40/21] md:aspect-auto md:h-[340px] lg:h-[400px]">
       <AnimatePresence mode="wait">
         <motion.div
           key={currentSlide}
@@ -127,7 +127,7 @@ export function FeaturedVideoSlideshow() {
                <img
                  src={currentItem.data.imageUrl}
                  alt={currentItem.data.title}
-                 className="absolute inset-0 w-full h-full object-cover object-bottom md:object-center scale-110 md:scale-100"
+                 className="absolute inset-0 w-full h-full object-cover object-bottom md:object-center"
                />
                <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition-colors" />
                <div className="absolute top-3 left-3 flex items-center gap-2">

@@ -261,22 +261,24 @@ export default function Games() {
                       return (
                         <Link href={`/game/${game.id}`} className="block h-full">
                           <div className="flex flex-col md:grid md:grid-cols-2 gap-0 h-full md:h-full cursor-pointer group">
-                            <div className="order-2 md:order-1 flex-1 p-5 md:p-8 flex flex-col justify-start md:justify-center md:h-full bg-gradient-to-br from-white to-emerald-50">
-                              <div className="inline-flex items-center gap-2 mb-3">
+                            {/* Narrow/stacked layout: image on top, no description or points —
+                                just the title, so the thumbnail gets most of the fixed-size box. */}
+                            <div className="order-2 md:order-1 flex-1 p-4 md:p-8 flex flex-col justify-start md:justify-center md:h-full bg-gradient-to-br from-white to-emerald-50">
+                              <div className="hidden md:inline-flex items-center gap-2 mb-3">
                                 <span className="bg-primary/10 text-primary text-xs font-bold px-3 py-1 rounded-full">Featured Game</span>
                                 <span className="bg-white/90 text-gray-700 text-xs font-bold px-3 py-1 rounded-full">{game.gameType.toUpperCase()}</span>
                               </div>
-                              <h2 className="font-heading text-xl md:text-2xl lg:text-3xl font-bold mb-3 line-clamp-2 text-foreground">{game.title}</h2>
-                              <p className="text-muted-foreground text-sm md:text-base mb-4 line-clamp-2">{game.description || "Play, Learn, and Win!"}</p>
-                              <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                              <h2 className="font-heading text-lg md:text-2xl lg:text-3xl font-bold mb-2 md:mb-3 line-clamp-2 text-foreground">{game.title}</h2>
+                              <p className="hidden md:block text-muted-foreground text-sm md:text-base mb-4 line-clamp-2">{game.description || "Play, Learn, and Win!"}</p>
+                              <div className="hidden md:flex items-center gap-4 text-sm text-muted-foreground mb-4">
                                 <span className="flex items-center gap-1"><Trophy className="w-4 h-4" /> {game.pointsReward} pts</span>
                               </div>
-                              <Button size="sm" className="mt-auto w-fit rounded-full text-sm px-6 h-9 shadow-md shadow-primary/20 gap-2">
+                              <Button size="sm" className="mt-2 md:mt-auto w-fit rounded-full text-sm px-6 h-9 shadow-md shadow-primary/20 gap-2">
                                 <Play className="w-4 h-4 fill-current" />
                                 Play Now
                               </Button>
                             </div>
-                            <div className="order-1 md:order-2 relative h-[60%] md:h-full overflow-hidden">
+                            <div className="order-1 md:order-2 relative h-[70%] md:h-full overflow-hidden">
                               {game.thumbnail ? (
                                 <img 
                                   src={game.thumbnail}

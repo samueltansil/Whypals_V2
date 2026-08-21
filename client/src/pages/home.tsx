@@ -223,7 +223,7 @@ export default function Home() {
         {/* Hero Section - Featured Stories & Banners Slideshow */}
         {activeCategory === "All" && allFeaturedItems.length > 0 && currentFeaturedItem && (
           <section className="mb-6 relative">
-            <div className={`relative rounded-2xl overflow-hidden bg-white shadow-lg md:aspect-auto md:h-[340px] lg:h-[400px] ${currentFeaturedItem.type === 'banner' ? 'aspect-[40/21]' : ''}`}>
+            <div className="relative rounded-2xl overflow-hidden bg-white shadow-lg aspect-[40/21] md:aspect-auto md:h-[340px] lg:h-[400px]">
               <AnimatePresence mode="wait">
                 <motion.div
                   key={currentSlide}
@@ -237,8 +237,8 @@ export default function Home() {
                     <Link href={`/story/${currentFeaturedItem.data.id}`} className="block h-full">
                       <div className="flex flex-col md:grid md:grid-cols-2 gap-0 cursor-pointer group h-full md:h-full">
                         {/* Narrow/stacked layout: image on top, no description — just the
-                            title, so the thumbnail gets most of the space and stays clear. */}
-                        <div className="order-1 md:order-2 relative aspect-[16/9] md:aspect-auto md:h-full overflow-hidden">
+                            title, so the thumbnail gets most of the fixed-size slideshow box. */}
+                        <div className="order-1 md:order-2 relative h-[70%] md:h-full overflow-hidden">
                           <img
                             src={currentFeaturedItem.data.thumbnail}
                             alt={currentFeaturedItem.data.title}

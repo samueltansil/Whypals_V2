@@ -175,6 +175,117 @@ async function findGameImage(searchTerm: string): Promise<string | null> {
   return `${photo.urls.raw}&w=1200&q=85&fit=max&auto=format`;
 }
 
+// --- Admin "generate a story from one topic sentence" (with live web search) ---
+const TOPIC_STORY_CATEGORIES = ["Science", "Nature", "Sports", "World", "Fun"] as const;
+
+function slugifyTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+}
+
+// Unlike planGameForStory/generateStory (which deliberately avoid breaking
+// news since they can't verify it), this one is explicitly for "tell me
+// what's happening with X right now" — so it gives Claude the web_search
+// tool and asks it to ground the story in what it actually finds.
+async function generateStoryFromTopic(topic: string): Promise<{
+  title: string;
+  excerpt: string;
+  content: string;
+  category: string;
+  readTime: string;
+  imageSearchTerms: string[];
+}> {
+  const prompt = `You write short, engaging, age-appropriate news stories for kids (ages 7-12) for an educational platform called WhyPals.
+
+A WhyPals editor typed this one-sentence topic and wants a story about what's actually happening right now: "${topic}"
+
+Use the web_search tool to find current, real, verifiable information about this topic BEFORE writing anything — do not rely on what you already know, since it may be out of date. Then write ONE story that explains it to a curious 7-12 year old, grounded in what you actually found.
+
+Rules:
+- Tone: warm, curious, simple vocabulary, short sentences, a sense of wonder — but stay factual and even-handed, especially if the topic is political, an election, or otherwise sensitive. Explain different sides fairly if the topic is contested; never take a side, never predict an outcome, never use loaded language.
+- No violence, no scary or graphic content, no ads, nothing inappropriate for a young child.
+- Length: 4-7 short paragraphs, separated by a blank line (double newline). Plain paragraphs only — no markdown formatting (no #, no **, no bullet lists).
+- Also write a one-sentence "excerpt" (max 160 characters) that teases the story.
+- Pick the SINGLE best-fit category from exactly this list: ${TOPIC_STORY_CATEGORIES.join(", ")}.
+- Also suggest 2-3 short English keywords (max 2 words each) for a stock photo search — concrete, visual things like "voting booth" or "capitol building", not abstract concepts.
+- Estimate a read time as "N min read" based on word count (about 200 words per minute).
+
+Respond with ONLY valid JSON, no markdown code fences, in this exact shape:
+{
+  "title": "...",
+  "excerpt": "...",
+  "content": "paragraph one\\n\\nparagraph two\\n\\n...",
+  "category": "World",
+  "readTime": "5 min read",
+  "imageSearchTerms": ["term1", "term2"]
+}`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY as string,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5-20250929",
+      max_tokens: 4000,
+      messages: [{ role: "user", content: prompt }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Anthropic API error ${res.status}: ${await res.text()}`);
+  const data: any = await res.json();
+
+  // With server-side tools (like web_search), the response can contain
+  // server_tool_use / web_search_tool_result blocks interleaved with text —
+  // the final answer is whatever text block comes last.
+  const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
+  const text = textBlocks.join("\n").trim();
+  if (!text) throw new Error("No text response from Claude (web search may have failed)");
+
+  const fenced = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+  let jsonText = fenced;
+  if (!fenced.startsWith("{")) {
+    // Model added commentary around the JSON despite instructions — grab the outermost braces.
+    const start = fenced.indexOf("{");
+    const end = fenced.lastIndexOf("}");
+    if (start === -1 || end === -1) throw new Error("Couldn't find JSON in Claude's response");
+    jsonText = fenced.slice(start, end + 1);
+  }
+
+  const plan = JSON.parse(jsonText);
+  if (!TOPIC_STORY_CATEGORIES.includes(plan.category)) {
+    plan.category = "World";
+  }
+  return plan;
+}
+
+async function findAndUploadThumbnail(searchTerm: string): Promise<{ imageUrl: string; thumbnailCredit: string } | null> {
+  if (!UNSPLASH_ACCESS_KEY_FOR_GAMES) return null;
+  const query = encodeURIComponent(searchTerm);
+  const searchRes = await fetch(
+    `https://api.unsplash.com/search/photos?query=${query}&per_page=5&orientation=landscape`,
+    { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY_FOR_GAMES}` } }
+  );
+  if (!searchRes.ok) return null;
+  const searchData: any = await searchRes.json();
+  const photo = searchData.results?.[0];
+  if (!photo) return null;
+
+  const photoUrl = `${photo.urls.raw}&w=1600&q=85&fit=max&auto=format`;
+  const photoRes = await fetch(photoUrl);
+  if (!photoRes.ok) return null;
+  const buffer = Buffer.from(await photoRes.arrayBuffer());
+
+  const { key } = await uploadImageToR2(buffer, "thumbnail.jpg", "image/jpeg", "story-thumbnails");
+  return { imageUrl: `/api/images/${key}`, thumbnailCredit: `Photo by ${photo.user.name} on Unsplash` };
+}
+
 async function planGameForStory(story: { title: string; category: string[]; content: string }): Promise<any> {
   const truncatedContent = story.content.length > 4000
     ? story.content.slice(0, 4000) + "..."
@@ -1502,6 +1613,67 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching admin stories:", error);
       res.status(500).json({ message: "Failed to fetch stories" });
+    }
+  });
+
+  // Admin: type one topic sentence -> Claude searches the live web for it,
+  // writes a kid-friendly story grounded in what it found, and creates it
+  // as a draft for review. Optionally also kicks off a linked game.
+  app.post('/api/admin/stories/generate-from-topic', async (req: any, res) => {
+    try {
+      if (!await isValidAdminSession(req)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      if (!ANTHROPIC_API_KEY) {
+        return res.status(500).json({ message: "ANTHROPIC_API_KEY not configured on the server" });
+      }
+
+      const topic = String(req.body?.topic || "").trim();
+      if (!topic) {
+        return res.status(400).json({ message: "topic is required" });
+      }
+      const generateGame = !!req.body?.generateGame;
+
+      console.log(`[topic-story] Researching + writing a story about: "${topic}"...`);
+      const plan = await generateStoryFromTopic(topic);
+
+      let thumbnail = "";
+      let thumbnailCredit = "";
+      try {
+        const thumb = await findAndUploadThumbnail(plan.imageSearchTerms?.[0] || plan.title);
+        if (thumb) {
+          thumbnail = thumb.imageUrl;
+          thumbnailCredit = thumb.thumbnailCredit;
+        }
+      } catch (err: any) {
+        console.warn(`[topic-story] Thumbnail step failed, continuing without one:`, err.message);
+      }
+
+      const story = await storage.createStory({
+        slug: `${slugifyTitle(plan.title)}-${Date.now().toString().slice(-5)}`,
+        title: plan.title,
+        excerpt: plan.excerpt,
+        content: plan.content,
+        category: [plan.category],
+        thumbnail,
+        thumbnailCredit,
+        readTime: plan.readTime || "4 min read",
+        authorId: null,
+        isFeatured: false,
+        isPublished: false, // always a draft — review the AI's write-up of current events before it goes live
+        publishedAt: null,
+      } as InsertStory);
+
+      console.log(`[topic-story] Created draft story #${story.id}: "${story.title}"`);
+
+      if (generateGame) {
+        generateGameForStoryInBackground(story);
+      }
+
+      res.status(201).json(story);
+    } catch (error: any) {
+      console.error("Error generating story from topic:", error);
+      res.status(500).json({ message: error.message || "Failed to generate story" });
     }
   });
 

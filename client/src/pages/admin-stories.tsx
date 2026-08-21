@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "wouter";
-import { Plus, Edit, Trash2, Eye, EyeOff, Star, ArrowLeft, Save, X, Upload, Loader2, Lock, Shield, Volume2, CheckCircle, AlertCircle } from "lucide-react";
+import { Plus, Edit, Trash2, Eye, EyeOff, Star, ArrowLeft, Save, X, Upload, Loader2, Lock, Shield, Volume2, CheckCircle, AlertCircle, Sparkles, Globe2 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -774,6 +774,9 @@ function StoryRow({ story, views, reads, onEdit, onDelete }: { story: Story; vie
 export default function AdminStories() {
   const [editingStory, setEditingStory] = useState<Story | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isTopicDialogOpen, setIsTopicDialogOpen] = useState(false);
+  const [topicInput, setTopicInput] = useState("");
+  const [topicGenerateGame, setTopicGenerateGame] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -844,6 +847,33 @@ export default function AdminStories() {
     },
     onError: (error) => {
       toast({ title: "Error creating story", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const generateFromTopicMutation = useMutation({
+    mutationFn: async ({ topic, generateGame }: { topic: string; generateGame: boolean }) => {
+      const res = await fetch("/api/admin/stories/generate-from-topic", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ topic, generateGame }),
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Failed to generate story");
+      }
+      return res.json();
+    },
+    onSuccess: (story: Story) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/stories"] });
+      setIsTopicDialogOpen(false);
+      setTopicInput("");
+      setTopicGenerateGame(false);
+      toast({ title: "Story generated", description: `"${story.title}" was created as a draft — give it a read before publishing.` });
+      setEditingStory(story);
+    },
+    onError: (error: any) => {
+      toast({ title: "Couldn't generate story", description: error.message, variant: "destructive" });
     },
   });
 
@@ -956,11 +986,87 @@ export default function AdminStories() {
           </div>
           <div className="flex items-center gap-3">
             <AutoPublishToggle />
+            <Button variant="outline" onClick={() => setIsTopicDialogOpen(true)} data-testid="button-generate-from-topic">
+              <Sparkles className="w-4 h-4 mr-2" /> Generate from Topic
+            </Button>
             <Button onClick={() => setIsCreating(true)} data-testid="button-create-story">
               <Plus className="w-4 h-4 mr-2" /> New Story
             </Button>
           </div>
         </div>
+
+        <Dialog open={isTopicDialogOpen} onOpenChange={(open) => { if (!generateFromTopicMutation.isPending) setIsTopicDialogOpen(open); }}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle className="font-heading text-xl flex items-center gap-2">
+                <Sparkles className="w-5 h-5" /> Generate a Story from a Topic
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="topic-input" className="text-sm font-bold mb-1 block">
+                  What's it about?
+                </Label>
+                <Textarea
+                  id="topic-input"
+                  value={topicInput}
+                  onChange={(e) => setTopicInput(e.target.value)}
+                  placeholder='One sentence is enough, e.g. "the American election" or "the new SpaceX rocket launch"'
+                  rows={2}
+                  disabled={generateFromTopicMutation.isPending}
+                  data-testid="input-topic"
+                />
+                <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                  <Globe2 className="w-3 h-3" /> Claude will search the live web for current, real info on this before writing anything.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-between px-4 py-3 rounded-xl bg-muted">
+                <div className="flex flex-col">
+                  <Label htmlFor="topic-generate-game" className="text-sm font-bold cursor-pointer">
+                    Also generate a game
+                  </Label>
+                  <span className="text-xs text-muted-foreground">Creates a linked mini-game for this story too</span>
+                </div>
+                <Switch
+                  id="topic-generate-game"
+                  checked={topicGenerateGame}
+                  disabled={generateFromTopicMutation.isPending}
+                  onCheckedChange={setTopicGenerateGame}
+                />
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                The story is always created as a draft so you can review it before publishing — this matters more than usual since it's about real, current events.
+              </p>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setIsTopicDialogOpen(false)}
+                  disabled={generateFromTopicMutation.isPending}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => generateFromTopicMutation.mutate({ topic: topicInput.trim(), generateGame: topicGenerateGame })}
+                  disabled={!topicInput.trim() || generateFromTopicMutation.isPending}
+                  data-testid="button-submit-topic"
+                >
+                  {generateFromTopicMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Researching &amp; writing...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 mr-2" /> Generate
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {isLoading ? (
           <div className="text-center py-12">

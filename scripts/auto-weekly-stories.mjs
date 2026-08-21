@@ -433,23 +433,22 @@ function escapeXml(s) {
 // just for banners — which together only show roughly the centered
 // x:220-980, y:30-600 region of the original image. Anything outside that
 // (like text anchored near the left edge) gets cropped off on mobile.
-const MOBILE_SAFE_LEFT_X = 250; // px, left inset that stays inside the mobile crop's x:220-980 window
-const MOBILE_SAFE_RIGHT_X = 960; // px, right bound of that same window (with margin)
-const MOBILE_SAFE_MAX_TEXT_WIDTH = MOBILE_SAFE_RIGHT_X - MOBILE_SAFE_LEFT_X;
+const MOBILE_SAFE_WIDTH = 760; // px, centered
+const MOBILE_SAFE_MAX_TEXT_WIDTH = MOBILE_SAFE_WIDTH - 80; // margin inside the safe zone
 
 // Desktop's fixed-height/flexible-width container crops the image
 // vertically as the window widens; on wide screens only roughly
-// y:165-465 stays visible. Anchoring the text baseline here (well above
-// 465 to leave room for the drop-shadow) keeps it inside that zone too,
-// while still reading as "bottom" of the image on typical screens.
-const DESKTOP_SAFE_BOTTOM_Y = 425;
+// y:165-465 stays visible. Anchoring the text baseline here (as close to
+// 465 as the drop-shadow/descenders allow) keeps it inside that zone
+// while sitting right at the bottom of the visible photo on every screen.
+const TEXT_BOTTOM_Y = 445;
 
-// Composites a bold, BOTTOM-LEFT headline (the classic "premium" movie
-// poster / hero-image look) over a gradient scrim that darkens toward the
-// bottom-left corner. Font size shrinks dynamically to fit longer theme
-// names, and the text/scrim position is pinned to the zone that survives
-// BOTH the mobile crop (which constrains x) and the desktop crop (which
-// constrains y) — see the constants above for the safe-zone math.
+// Composites a bold, centered headline near the BOTTOM of the image over a
+// soft horizontal gradient band (no boxed "pill" — a feathered dark band
+// like a movie poster or blog hero image). Font size shrinks dynamically
+// to fit longer theme names, and the text position is pinned to the zone
+// that survives BOTH the mobile crop (which constrains x) and the desktop
+// crop (which constrains y) — see the constants above for the safe-zone math.
 async function composeBannerImage(photoBuffer, theme, style) {
   const fitted = await sharp(photoBuffer)
     .resize(BANNER_WIDTH, BANNER_HEIGHT, { fit: "cover" })
@@ -458,10 +457,10 @@ async function composeBannerImage(photoBuffer, theme, style) {
 
   // Shrink font size until the (roughly estimated) text width fits inside
   // the mobile-safe zone, so the headline survives the mobile crop+zoom.
-  const CHAR_WIDTH_FACTOR = 0.6; // rough average glyph width as a fraction of font-size, for this bold font
-  let fontSize = 88;
+  const CHAR_WIDTH_FACTOR = 0.62; // rough average glyph width as a fraction of font-size, for this bold font
+  let fontSize = 92;
   while (
-    fontSize > 30 &&
+    fontSize > 32 &&
     theme.length * fontSize * CHAR_WIDTH_FACTOR > MOBILE_SAFE_MAX_TEXT_WIDTH
   ) {
     fontSize -= 2;
@@ -475,22 +474,17 @@ async function composeBannerImage(photoBuffer, theme, style) {
   <defs>
     <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0"/>
-      <stop offset="42%" stop-color="${scrimColor}" stop-opacity="0"/>
-      <stop offset="65%" stop-color="${scrimColor}" stop-opacity="0.55"/>
-      <stop offset="80%" stop-color="${scrimColor}" stop-opacity="0.82"/>
-      <stop offset="100%" stop-color="${scrimColor}" stop-opacity="0.82"/>
-    </linearGradient>
-    <linearGradient id="side" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0.35"/>
-      <stop offset="55%" stop-color="${scrimColor}" stop-opacity="0"/>
+      <stop offset="35%" stop-color="${scrimColor}" stop-opacity="0"/>
+      <stop offset="55%" stop-color="${scrimColor}" stop-opacity="0.68"/>
+      <stop offset="75%" stop-color="${scrimColor}" stop-opacity="0"/>
+      <stop offset="100%" stop-color="${scrimColor}" stop-opacity="0"/>
     </linearGradient>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.55"/>
     </filter>
   </defs>
   <rect x="0" y="0" width="${BANNER_WIDTH}" height="${BANNER_HEIGHT}" fill="url(#band)" />
-  <rect x="0" y="0" width="${BANNER_WIDTH}" height="${BANNER_HEIGHT}" fill="url(#side)" />
-  <text x="${MOBILE_SAFE_LEFT_X}" y="${DESKTOP_SAFE_BOTTOM_Y}" text-anchor="start"
+  <text x="50%" y="${TEXT_BOTTOM_Y}" text-anchor="middle"
         font-family="'DejaVu Sans', Verdana, Arial, sans-serif" font-weight="900"
         font-size="${fontSize}" letter-spacing="1" fill="${textColor}" filter="url(#shadow)">${escapeXml(theme)}</text>
 </svg>`;

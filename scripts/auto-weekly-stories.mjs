@@ -436,10 +436,14 @@ function escapeXml(s) {
 const MOBILE_SAFE_WIDTH = 760; // px, centered
 const MOBILE_SAFE_MAX_TEXT_WIDTH = MOBILE_SAFE_WIDTH - 80; // margin inside the safe zone
 
-// Composites a bold, centered headline over a soft bottom gradient scrim
-// (no boxed "pill" — a dark-to-transparent gradient like a movie poster or
-// blog hero image), sized and centered to stay inside the mobile-safe zone
-// above.
+// Composites a bold, VERTICALLY CENTERED headline over a soft horizontal
+// gradient band (no boxed "pill" — a feathered dark band like a movie
+// poster or blog hero image). The banner is cropped differently on mobile
+// (horizontal crop, generous vertical range) vs. desktop (fixed-height,
+// flexible-width container that crops vertically as the window widens) —
+// so the ONLY zone safe for both is near the vertical center of the image.
+// Text is sized to stay inside the mobile-safe horizontal zone above, and
+// positioned at the vertical midpoint so it survives the desktop crop too.
 async function composeBannerImage(photoBuffer, theme, style) {
   const fitted = await sharp(photoBuffer)
     .resize(BANNER_WIDTH, BANNER_HEIGHT, { fit: "cover" })
@@ -460,20 +464,24 @@ async function composeBannerImage(photoBuffer, theme, style) {
   const textColor = /^#[0-9a-f]{6}$/i.test(style?.textColor || "") ? style.textColor : "#FFFFFF";
   const scrimColor = /^#[0-9a-f]{6}$/i.test(style?.scrimColor || "") ? style.scrimColor : "#04203d";
 
+  const centerY = BANNER_HEIGHT / 2;
+
   const svg = `
 <svg width="${BANNER_WIDTH}" height="${BANNER_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0"/>
-      <stop offset="55%" stop-color="${scrimColor}" stop-opacity="0.15"/>
-      <stop offset="100%" stop-color="${scrimColor}" stop-opacity="0.82"/>
+      <stop offset="32%" stop-color="${scrimColor}" stop-opacity="0"/>
+      <stop offset="50%" stop-color="${scrimColor}" stop-opacity="0.72"/>
+      <stop offset="68%" stop-color="${scrimColor}" stop-opacity="0"/>
+      <stop offset="100%" stop-color="${scrimColor}" stop-opacity="0"/>
     </linearGradient>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.5"/>
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.55"/>
     </filter>
   </defs>
-  <rect x="0" y="${BANNER_HEIGHT * 0.35}" width="${BANNER_WIDTH}" height="${BANNER_HEIGHT * 0.65}" fill="url(#scrim)" />
-  <text x="50%" y="${BANNER_HEIGHT - 70}" text-anchor="middle"
+  <rect x="0" y="0" width="${BANNER_WIDTH}" height="${BANNER_HEIGHT}" fill="url(#band)" />
+  <text x="50%" y="${centerY + fontSize * 0.32}" text-anchor="middle"
         font-family="'DejaVu Sans', Verdana, Arial, sans-serif" font-weight="900"
         font-size="${fontSize}" letter-spacing="1" fill="${textColor}" filter="url(#shadow)">${escapeXml(theme)}</text>
 </svg>`;

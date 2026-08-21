@@ -262,6 +262,13 @@ Respond with ONLY valid JSON, no markdown code fences, in this exact shape:
 }
 
 // --- Unsplash ---
+// Using the "raw" URL + explicit width/quality params gets Unsplash's
+// original full-resolution source, resized server-side at high quality —
+// noticeably sharper than the pre-downsampled "regular" (1080px) size.
+function unsplashHiRes(photo, width) {
+  return `${photo.urls.raw}&w=${width}&q=85&fit=max&auto=format`;
+}
+
 async function findThumbnail(searchTerms) {
   const query = encodeURIComponent(searchTerms?.[0] || "kids learning");
   const res = await fetch(
@@ -272,7 +279,7 @@ async function findThumbnail(searchTerms) {
   const data = await res.json();
   const photo = data.results?.[0];
   if (!photo) return null;
-  return { url: photo.urls.regular, credit: `Photo by ${photo.user.name} on Unsplash` };
+  return { url: unsplashHiRes(photo, 1600), credit: `Photo by ${photo.user.name} on Unsplash` };
 }
 
 // --- WhyPals admin API ---
@@ -366,8 +373,7 @@ async function searchUnsplashCandidates(theme) {
   if (!res.ok) throw new Error(`Unsplash API error ${res.status}: ${await res.text()}`);
   const data = await res.json();
   return (data.results || []).map((p) => ({
-    url: p.urls.regular,
-    credit: `Photo by ${p.user.name} on Unsplash`,
+    url: unsplashHiRes(p, 1600), // banner is 1200 wide but gets upscaled/zoomed on mobile — extra headroom keeps it sharp
     description: p.description || p.alt_description || "",
     color: p.color,
   }));
@@ -433,8 +439,8 @@ const MOBILE_SAFE_MAX_TEXT_WIDTH = MOBILE_SAFE_WIDTH - 80; // margin inside the 
 // Composites a bold, centered headline over a soft bottom gradient scrim
 // (no boxed "pill" — a dark-to-transparent gradient like a movie poster or
 // blog hero image), sized and centered to stay inside the mobile-safe zone
-// above, plus a small, unobtrusive Unsplash photo credit.
-async function composeBannerImage(photoBuffer, theme, style, credit) {
+// above.
+async function composeBannerImage(photoBuffer, theme, style) {
   const fitted = await sharp(photoBuffer)
     .resize(BANNER_WIDTH, BANNER_HEIGHT, { fit: "cover" })
     .png()
@@ -467,11 +473,9 @@ async function composeBannerImage(photoBuffer, theme, style, credit) {
     </filter>
   </defs>
   <rect x="0" y="${BANNER_HEIGHT * 0.35}" width="${BANNER_WIDTH}" height="${BANNER_HEIGHT * 0.65}" fill="url(#scrim)" />
-  <text x="50%" y="${BANNER_HEIGHT - 100}" text-anchor="middle"
+  <text x="50%" y="${BANNER_HEIGHT - 70}" text-anchor="middle"
         font-family="'DejaVu Sans', Verdana, Arial, sans-serif" font-weight="900"
         font-size="${fontSize}" letter-spacing="1" fill="${textColor}" filter="url(#shadow)">${escapeXml(theme)}</text>
-  <text x="50%" y="${BANNER_HEIGHT - 35}" text-anchor="middle"
-        font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#ffffff" fill-opacity="0.6">${escapeXml(credit || "")}</text>
 </svg>`;
 
   return sharp(fitted)
@@ -512,14 +516,14 @@ async function manageThemeBanner(token, theme) {
     console.log(`[banner] Asking Claude to pick the best of ${candidates.length} photos + a matching style...`);
     const style = await pickBannerPhotoAndStyle(theme, candidates);
     const chosen = candidates[style.bestIndex] || candidates[0];
-    console.log(`[banner] Picked photo #${style.bestIndex} (${chosen.credit}), textColor=${style.textColor}, scrimColor=${style.scrimColor}`);
+    console.log(`[banner] Picked photo #${style.bestIndex}, textColor=${style.textColor}, scrimColor=${style.scrimColor}`);
 
     const photoRes = await fetch(chosen.url);
     if (!photoRes.ok) throw new Error(`Failed to download chosen photo: ${photoRes.status}`);
     const photoBuffer = Buffer.from(await photoRes.arrayBuffer());
 
     console.log("[banner] Compositing headline text onto banner...");
-    const finalImage = await composeBannerImage(photoBuffer, theme, style, chosen.credit);
+    const finalImage = await composeBannerImage(photoBuffer, theme, style);
 
     console.log("[banner] Uploading banner image...");
     const imageUrl = await uploadBannerImage(token, finalImage, "image/png");

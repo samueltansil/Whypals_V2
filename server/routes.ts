@@ -159,7 +159,7 @@ function preGenerateStoryAudioInBackground(storyId: number, content: string) {
 // --- Auto-generate one game per newly-published story ---
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const UNSPLASH_ACCESS_KEY_FOR_GAMES = process.env.UNSPLASH_ACCESS_KEY;
-const AUTO_GAME_TYPES = ["quiz", "timeline", "match", "poll", "puzzle", "fillblank", "truefalse", "scramble"] as const;
+const AUTO_GAME_TYPES = ["quiz", "timeline", "poll", "puzzle", "fillblank", "truefalse", "scramble", "guessnumber", "oddoneout", "emojidecoder"] as const;
 
 async function findGameImage(searchTerm: string): Promise<string | null> {
   if (!UNSPLASH_ACCESS_KEY_FOR_GAMES) return null;
@@ -180,17 +180,19 @@ async function planGameForStory(story: { title: string; category: string[]; cont
     ? story.content.slice(0, 4000) + "..."
     : story.content;
 
-  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. Read it and decide which ONE of these 8 game types best fits its content, then generate the actual game content for that type.
+  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. Read it and decide which ONE of these 10 game types best fits its content, then generate the actual game content for that type.
 
 Game types and when each fits well:
 - "quiz": the story has clear facts a reader could be asked comprehension questions about. Needs 4-5 multiple choice questions.
 - "timeline": the story describes a sequence, process, or order of events (how something happens/happened step by step, or a history). Needs 4-6 events in their correct chronological/logical order.
-- "match": the story is full of distinct terms, names, or facts that naturally pair up (a word and its meaning, an animal and a trait, etc). Needs 4-6 pairs.
 - "poll": the story has a fun, opinion-based angle with no single right answer (e.g. "which of these would you rather..."). Needs 2-3 questions, each with 3-4 options.
 - "puzzle": the story is strongly visual/atmospheric without a clean set of quizzable facts. This just reuses the story's photo as a sliding puzzle, so pick this when nothing else fits well.
 - "fillblank": the story has strong individual sentences you could blank out a key word from to test close reading. Needs 4-5 sentences pulled/adapted from the story, each with one word replaced by "___", plus multiple choice options for the missing word.
 - "truefalse": the story has several standalone, clearly true or false factual claims you could quiz rapid-fire. Needs 6-8 short true/false statements.
 - "scramble": the story has ONE especially strong, concrete, visually-recognizable noun (an animal, place, or object — not an abstract concept) that would make a fun "guess the picture" word puzzle. Needs just that one word plus a short kid-friendly clue.
+- "guessnumber": the story has ONE striking, guessable numeric fact (a count, speed, size, distance, age, etc). Needs the question, the exact numeric answer, and an optional unit.
+- "oddoneout": the story has enough real facts that you can write 4-statement rounds where 3 are true and 1 is a plausible-sounding made-up fact. Needs 3-5 rounds, each with exactly 4 statements and which index is the fake one.
+- "emojidecoder": the story has concrete, visual nouns/concepts that can be represented as a short emoji sequence for the reader to guess. Needs 4-6 rounds, each an emoji clue plus 4 multiple choice options.
 
 Story title: ${story.title}
 Story category: ${story.category.join(", ")}
@@ -199,7 +201,7 @@ ${truncatedContent}
 
 Respond with ONLY valid JSON, no markdown fences, matching this exact shape (include ONLY the one config key that matches your chosen gameType — omit the other config keys entirely):
 {
-  "gameType": "quiz" | "timeline" | "match" | "poll" | "puzzle" | "fillblank" | "truefalse" | "scramble",
+  "gameType": "quiz" | "timeline" | "poll" | "puzzle" | "fillblank" | "truefalse" | "scramble" | "guessnumber" | "oddoneout" | "emojidecoder",
   "title": "a short, fun game title, e.g. 'Ocean Wave Quiz'",
   "description": "one upbeat sentence describing the game, aimed at a kid",
   "funFacts": "one or two extra fun facts related to the story, kid-friendly",
@@ -214,12 +216,6 @@ Respond with ONLY valid JSON, no markdown fences, matching this exact shape (inc
   "timelineConfig": {
     "events": [
       { "id": "e1", "title": "...", "description": "...", "order": 1 }
-    ],
-    "winMessage": "..."
-  },
-  "matchConfig": {
-    "pairs": [
-      { "id": "p1", "front": "...", "back": "..." }
     ],
     "winMessage": "..."
   },
@@ -252,6 +248,26 @@ Respond with ONLY valid JSON, no markdown fences, matching this exact shape (inc
     "imageSearchTerm": "seahorse underwater",
     "clue": "This ocean animal's dads carry the babies!",
     "winMessage": "..."
+  },
+  "guessnumberConfig": {
+    "question": "How many times per second can a woodpecker peck?",
+    "answer": 20,
+    "unit": "pecks per second",
+    "maxGuesses": 6,
+    "funFactAfter": "...",
+    "winMessage": "..."
+  },
+  "oddoneoutConfig": {
+    "rounds": [
+      { "id": "r1", "statements": ["...", "...", "...", "..."], "fakeIndex": 2, "explanation": "..." }
+    ],
+    "winMessage": "..."
+  },
+  "emojidecoderConfig": {
+    "rounds": [
+      { "id": "r1", "emojiClue": "🦔🌰❄️", "options": ["...", "...", "...", "..."], "correctIndex": 0, "explanation": "..." }
+    ],
+    "winMessage": "..."
   }
 }`;
 
@@ -282,8 +298,6 @@ async function buildGameConfig(plan: any, story: { thumbnail: string }): Promise
       return plan.quizConfig;
     case "timeline":
       return plan.timelineConfig;
-    case "match":
-      return plan.matchConfig;
     case "poll":
       return plan.pollConfig;
     case "puzzle":
@@ -311,6 +325,12 @@ async function buildGameConfig(plan: any, story: { thumbnail: string }): Promise
         winMessage: plan.scrambleConfig?.winMessage || "You got it!",
       };
     }
+    case "guessnumber":
+      return plan.guessnumberConfig;
+    case "oddoneout":
+      return plan.oddoneoutConfig;
+    case "emojidecoder":
+      return plan.emojidecoderConfig;
     default:
       throw new Error(`Unrecognized gameType from Claude: "${plan.gameType}"`);
   }
@@ -327,11 +347,6 @@ function validateGameConfig(gameType: string, config: any): void {
     case "timeline":
       if (!Array.isArray(config.events) || config.events.length === 0) {
         throw new Error("timeline config missing events");
-      }
-      break;
-    case "match":
-      if (!Array.isArray(config.pairs) || config.pairs.length === 0) {
-        throw new Error("match config missing pairs");
       }
       break;
     case "poll":
@@ -354,6 +369,21 @@ function validateGameConfig(gameType: string, config: any): void {
       break;
     case "scramble":
       if (!config.imageUrl || !config.word) throw new Error("scramble config missing imageUrl or word");
+      break;
+    case "guessnumber":
+      if (!config.question || typeof config.answer !== "number") {
+        throw new Error("guessnumber config missing question or answer");
+      }
+      break;
+    case "oddoneout":
+      if (!Array.isArray(config.rounds) || config.rounds.length === 0) {
+        throw new Error("oddoneout config missing rounds");
+      }
+      break;
+    case "emojidecoder":
+      if (!Array.isArray(config.rounds) || config.rounds.length === 0) {
+        throw new Error("emojidecoder config missing rounds");
+      }
       break;
   }
 }

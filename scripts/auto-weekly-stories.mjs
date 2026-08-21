@@ -49,7 +49,6 @@ loadEnvFile(join(__dirname, "..", ".env.automation"));
 // --- config ---
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // optional — only needed for the theme banner image
 const WHYPALS_BASE_URL = process.env.WHYPALS_BASE_URL || "https://whypals.com";
 const WHYPALS_ADMIN_PASSWORD = process.env.WHYPALS_ADMIN_PASSWORD;
 
@@ -334,34 +333,32 @@ async function uploadBannerImage(token, buffer, mimeType) {
   return data.imageUrl;
 }
 
-// --- Gemini (nano-banana): generate the illustrated weekly theme banner ---
+// --- Pollinations.ai: generate the illustrated weekly theme banner ---
+// Free, no API key, no billing. Quality/text-legibility is less consistent
+// than a paid model, so we retry a couple of times before giving up.
 async function generateThemeBannerImage(theme) {
-  const prompt = `Create a bright, playful, flat-vector cartoon illustration banner for a kids' educational website homepage. It must clearly and legibly include the bold text "${theme}" as the main headline, in a fun rounded children's-book font. Surround it with 2-3 cute simple characters or objects that represent the theme "${theme}". Use a cheerful, colorful palette, rounded shapes, no photorealism, no watermark, no extra text besides the headline. Wide landscape aspect ratio suitable for a website hero banner.`;
+  const prompt = `Bright playful flat-vector cartoon illustration banner for a kids educational website homepage. Bold clear headline text reading exactly "${theme}" in a fun rounded children's book font. 2-3 cute simple characters or objects representing the theme "${theme}". Cheerful colorful palette, rounded shapes, no photorealism, no watermark, no extra text besides the headline, wide landscape hero banner.`;
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-      }),
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1200&height=630&nologo=true&model=flux`;
+
+  const MAX_ATTEMPTS = 3;
+  let lastErr;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      const res = await fetch(url, { headers: { Accept: "image/*" } });
+      if (!res.ok) throw new Error(`Pollinations API error ${res.status}: ${await res.text()}`);
+      const contentType = res.headers.get("content-type") || "";
+      if (!contentType.startsWith("image/")) {
+        throw new Error(`Pollinations did not return an image (got ${contentType || "unknown content-type"})`);
+      }
+      const buffer = Buffer.from(await res.arrayBuffer());
+      return { buffer, mimeType: contentType.split(";")[0] || "image/jpeg" };
+    } catch (err) {
+      lastErr = err;
+      console.warn(`[banner] Pollinations attempt ${attempt}/${MAX_ATTEMPTS} failed:`, err.message);
     }
-  );
-
-  if (!res.ok) throw new Error(`Gemini API error ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-
-  const parts = data.candidates?.[0]?.content?.parts || [];
-  const imagePart = parts.find((p) => p.inlineData?.data);
-  if (!imagePart) {
-    throw new Error("Gemini did not return an image (it may have refused the prompt)");
   }
-
-  return {
-    buffer: Buffer.from(imagePart.inlineData.data, "base64"),
-    mimeType: imagePart.inlineData.mimeType || "image/png",
-  };
+  throw lastErr;
 }
 
 // --- Local tracking of the last auto-created theme banner, so next week's
@@ -385,11 +382,6 @@ function saveLastBanner(bannerId, theme) {
 // (if any), and activates the new one. Never throws — a banner failure
 // should never take down the story batch.
 async function manageThemeBanner(token, theme) {
-  if (!GEMINI_API_KEY) {
-    console.warn("[banner] GEMINI_API_KEY not set — skipping automatic theme banner. Add one to enable it.");
-    return;
-  }
-
   try {
     console.log(`\n[banner] Generating banner image for "${theme}"...`);
     const { buffer, mimeType } = await generateThemeBannerImage(theme);

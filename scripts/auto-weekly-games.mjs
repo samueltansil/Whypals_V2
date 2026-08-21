@@ -15,18 +15,28 @@
  * (once the recent 6 are all gamed) and it just picks randomly from
  * whatever published stories still don't have a game.
  *
- * For each of the 3 stories picked, Claude reads the actual story content
- * and decides which of 5 game types best fits it:
- *   - quiz     : comprehension questions with 4 options + explanation
- *   - timeline : put a sequence of events in the right order (text only)
- *   - match    : memory-match pairs of related terms/facts (text only)
- *   - poll     : a fun, no-wrong-answer opinion question
- *   - puzzle   : sliding/jigsaw puzzle using the story's own thumbnail
+ * NOTE: as of the publish-time auto-game hook in server/routes.ts, every
+ * story now automatically gets exactly 1 game the moment YOU publish it —
+ * this script is no longer the primary path for that. It's now mainly a
+ * manual backfill tool: for older stories that predate that change, or to
+ * add extra games on top whenever you feel like it ("node
+ * scripts/auto-weekly-games.mjs" any time — it picks at random).
+ *
+ * For each story picked, Claude reads the actual story content and decides
+ * which of 8 game types best fits it:
+ *   - quiz      : comprehension questions with 4 options + explanation
+ *   - timeline  : put a sequence of events in the right order (text only)
+ *   - match     : memory-match pairs of related terms/facts (text only)
+ *   - poll      : a fun, no-wrong-answer opinion question
+ *   - puzzle    : sliding/jigsaw puzzle using the story's own thumbnail
+ *   - fillblank : a real sentence from the story with a word blanked out
+ *   - truefalse : rapid-fire true/false statements, timed per statement
+ *   - scramble  : unscramble a key word, shown next to one themed photo
  * (whack-a-mole is intentionally excluded — it needs several correctly
  * labeled images sourced fresh each run, which is a lot of extra
- * Unsplash calls and failure surface for one of six game types.)
+ * Unsplash calls and failure surface for one game type.)
  *
- * All 3 games are created with isActive: false (a draft, same review-first
+ * All games are created with isActive: false (a draft, same review-first
  * pattern as the weekly stories) so nothing goes live without a look in
  * /admin/games first.
  *
@@ -75,10 +85,11 @@ loadEnvFile(join(__dirname, "..", ".env.automation"));
 
 // --- config ---
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
+const UNSPLASH_ACCESS_KEY = process.env.UNSPLASH_ACCESS_KEY;
 const WHYPALS_BASE_URL = process.env.WHYPALS_BASE_URL || "https://whypals.com";
 const WHYPALS_ADMIN_PASSWORD = process.env.WHYPALS_ADMIN_PASSWORD;
 
-const GAME_TYPES = ["quiz", "timeline", "match", "poll", "puzzle"];
+const GAME_TYPES = ["quiz", "timeline", "match", "poll", "puzzle", "fillblank", "truefalse", "scramble"];
 const DEFAULT_COUNT = 3;
 const RECENT_POOL_SIZE = 6; // prefer picking from the last N published stories (this week's batch) before falling back to the wider pool
 
@@ -90,6 +101,7 @@ function requireEnv(name, value) {
   }
 }
 requireEnv("ANTHROPIC_API_KEY", ANTHROPIC_API_KEY);
+requireEnv("UNSPLASH_ACCESS_KEY", UNSPLASH_ACCESS_KEY);
 requireEnv("WHYPALS_ADMIN_PASSWORD", WHYPALS_ADMIN_PASSWORD);
 
 // --- CLI args ---
@@ -136,6 +148,19 @@ async function fetchAllGames(token) {
   return res.json();
 }
 
+async function findGameImage(searchTerm) {
+  const query = encodeURIComponent(searchTerm);
+  const res = await fetch(
+    `https://api.unsplash.com/search/photos?query=${query}&per_page=3&orientation=landscape`,
+    { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
+  );
+  if (!res.ok) return null;
+  const data = await res.json();
+  const photo = data.results?.[0];
+  if (!photo) return null;
+  return `${photo.urls.raw}&w=1200&q=85&fit=max&auto=format`;
+}
+
 async function createGame(token, gamePayload) {
   const res = await fetch(`${WHYPALS_BASE_URL}/api/admin/games`, {
     method: "POST",
@@ -154,7 +179,7 @@ async function planGameForStory(story) {
     ? story.content.slice(0, 4000) + "..."
     : story.content;
 
-  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. Read it and decide which ONE of these 5 game types best fits its content, then generate the actual game content for that type.
+  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. Read it and decide which ONE of these 8 game types best fits its content, then generate the actual game content for that type.
 
 Game types and when each fits well:
 - "quiz": the story has clear facts a reader could be asked comprehension questions about. Needs 4-5 multiple choice questions.
@@ -162,6 +187,9 @@ Game types and when each fits well:
 - "match": the story is full of distinct terms, names, or facts that naturally pair up (a word and its meaning, an animal and a trait, etc). Needs 4-6 pairs.
 - "poll": the story has a fun, opinion-based angle with no single right answer (e.g. "which of these would you rather..."). Needs 2-3 questions, each with 3-4 options.
 - "puzzle": the story is strongly visual/atmospheric without a clean set of quizzable facts. This just reuses the story's photo as a sliding puzzle, so pick this when nothing else fits well.
+- "fillblank": the story has strong individual sentences you could blank out a key word from to test close reading. Needs 4-5 sentences pulled/adapted from the story, each with one word replaced by "___", plus multiple choice options for the missing word.
+- "truefalse": the story has several standalone, clearly true or false factual claims you could quiz rapid-fire. Needs 6-8 short true/false statements.
+- "scramble": the story has ONE especially strong, concrete, visually-recognizable noun (an animal, place, or object — not an abstract concept) that would make a fun "guess the picture" word puzzle. Needs just that one word plus a short kid-friendly clue.
 
 Story title: ${story.title}
 Story category: ${story.category.join(", ")}
@@ -170,7 +198,7 @@ ${truncatedContent}
 
 Respond with ONLY valid JSON, no markdown fences, matching this exact shape (include ONLY the one config key that matches your chosen gameType — omit the other config keys entirely):
 {
-  "gameType": "quiz" | "timeline" | "match" | "poll" | "puzzle",
+  "gameType": "quiz" | "timeline" | "match" | "poll" | "puzzle" | "fillblank" | "truefalse" | "scramble",
   "title": "a short, fun game title, e.g. 'Ocean Wave Quiz'",
   "description": "one upbeat sentence describing the game, aimed at a kid",
   "funFacts": "one or two extra fun facts related to the story, kid-friendly",
@@ -204,6 +232,25 @@ Respond with ONLY valid JSON, no markdown fences, matching this exact shape (inc
     "gridSize": 3,
     "hintText": "...",
     "winMessage": "..."
+  },
+  "fillblankConfig": {
+    "blanks": [
+      { "id": "b1", "sentence": "Seahorses live in ___ water.", "options": ["salt", "fresh", "boiling", "frozen"], "correctIndex": 0, "explanation": "..." }
+    ],
+    "winMessage": "..."
+  },
+  "truefalseConfig": {
+    "statements": [
+      { "id": "s1", "statement": "...", "isTrue": true, "explanation": "..." }
+    ],
+    "secondsPerStatement": 8,
+    "winMessage": "..."
+  },
+  "scrambleConfig": {
+    "word": "SEAHORSE",
+    "imageSearchTerm": "seahorse underwater",
+    "clue": "This ocean animal's dads carry the babies!",
+    "winMessage": "..."
   }
 }`;
 
@@ -229,7 +276,7 @@ Respond with ONLY valid JSON, no markdown fences, matching this exact shape (inc
 }
 
 // --- turn Claude's plan into the exact config shape the DB/UI expects ---
-function buildConfig(plan, story) {
+async function buildConfig(plan, story) {
   switch (plan.gameType) {
     case "quiz":
       return plan.quizConfig;
@@ -248,6 +295,22 @@ function buildConfig(plan, story) {
         hintText: plan.puzzleConfig?.hintText || "",
         winMessage: plan.puzzleConfig?.winMessage || "Puzzle Complete!",
       };
+    case "fillblank":
+      return plan.fillblankConfig;
+    case "truefalse":
+      return plan.truefalseConfig;
+    case "scramble": {
+      const word = (plan.scrambleConfig?.word || "").toString().trim();
+      const searchTerm = plan.scrambleConfig?.imageSearchTerm || word;
+      const imageUrl = word ? await findGameImage(searchTerm) : null;
+      if (!imageUrl) throw new Error("Could not find an image for the scramble word");
+      return {
+        imageUrl,
+        word,
+        clue: plan.scrambleConfig?.clue || "",
+        winMessage: plan.scrambleConfig?.winMessage || "You got it!",
+      };
+    }
     default:
       throw new Error(`Unrecognized gameType from Claude: "${plan.gameType}"`);
   }
@@ -278,6 +341,19 @@ function validateConfig(gameType, config) {
       break;
     case "puzzle":
       if (!config.imageUrl) throw new Error("puzzle config missing imageUrl");
+      break;
+    case "fillblank":
+      if (!Array.isArray(config.blanks) || config.blanks.length === 0) {
+        throw new Error("fillblank config missing blanks");
+      }
+      break;
+    case "truefalse":
+      if (!Array.isArray(config.statements) || config.statements.length === 0) {
+        throw new Error("truefalse config missing statements");
+      }
+      break;
+    case "scramble":
+      if (!config.imageUrl || !config.word) throw new Error("scramble config missing imageUrl or word");
       break;
   }
 }
@@ -348,7 +424,7 @@ async function main() {
 
     let config;
     try {
-      config = buildConfig(plan, story);
+      config = await buildConfig(plan, story);
       validateConfig(plan.gameType, config);
     } catch (err) {
       console.warn(`[${story.title}] Claude's output didn't match the expected shape, skipping:`, err.message);

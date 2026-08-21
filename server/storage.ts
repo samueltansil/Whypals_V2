@@ -130,9 +130,10 @@ export interface IStorage {
   updateUserPassword(userId: string, passwordHash: string): Promise<void>;
   updateUserNotifications(userId: string, data: { marketingEmailsOptIn?: boolean; contentAlertsOptIn?: boolean; teacherUpdatesOptIn?: boolean }): Promise<User>;
 
-  // Automation settings (weekly auto-publish on/off)
+  // Automation settings (weekly auto-publish on/off, free access mode)
   getAutomationSettings(): Promise<AutomationSettings>;
   setAutoPublishEnabled(enabled: boolean): Promise<AutomationSettings>;
+  setFreeAccessEnabled(enabled: boolean): Promise<AutomationSettings>;
   autoFeatureGame(id: number): Promise<StoryGame>;
   featureStoryAndUnfeatureOthers(id: number): Promise<Story>;
 
@@ -485,6 +486,16 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(automationSettings)
       .set({ autoPublishEnabled: enabled, updatedAt: new Date() })
+      .where(eq(automationSettings.id, 1))
+      .returning();
+    return updated;
+  }
+
+  async setFreeAccessEnabled(enabled: boolean): Promise<AutomationSettings> {
+    await this.getAutomationSettings(); // make sure the row exists first
+    const [updated] = await db
+      .update(automationSettings)
+      .set({ freeAccessEnabled: enabled, updatedAt: new Date() })
       .where(eq(automationSettings.id, 1))
       .returning();
     return updated;

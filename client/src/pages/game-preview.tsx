@@ -23,6 +23,7 @@ import EmojiDecoderGame from "@/components/games/EmojiDecoderGame";
 import { useGameAudio } from "@/hooks/useGameAudio";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useAuth } from "@/hooks/useAuth";
+import { useFreeAccessMode } from "@/hooks/useFreeAccessMode";
 
 // NOTE: "match" (Memory Match) is kept here so any existing match-type games
 // already in the database still play correctly — it's no longer offered when
@@ -64,6 +65,7 @@ export default function GamePreview() {
   const { points, refetchPoints, addPoints } = usePoints();
   const { toast } = useToast();
   const { isAuthenticated } = useAuth();
+  const { freeAccessEnabled } = useFreeAccessMode();
   const [gameStarted, setGameStarted] = useState(false);
   const [gameCompleted, setGameCompleted] = useState(false);
   const [finalScore, setFinalScore] = useState(0);
@@ -90,7 +92,7 @@ export default function GamePreview() {
   });
 
   const handleStartGame = () => {
-    if (!isAuthenticated && game?.gameType !== 'poll') {
+    if (!isAuthenticated && !freeAccessEnabled && game?.gameType !== 'poll') {
       toast({ title: "Log in to play game" });
       navigate(`/login?redirect=${encodeURIComponent(`/game/${gameId}`)}`);
       return;

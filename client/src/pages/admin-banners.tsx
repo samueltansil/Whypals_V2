@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2, Plus, Trash2, Save, X, Lock, GripVertical, Power, PowerOff } from "lucide-react";
 import { ImageUploadField } from "@/components/ui/image-upload-field";
+import { FreeAccessToggle } from "@/components/FreeAccessToggle";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
 import type { Banner } from "@shared/schema";
@@ -302,7 +303,8 @@ export default function AdminBanners() {
             <h1 className="text-3xl font-bold text-foreground">Banner Management</h1>
             <p className="text-muted-foreground mt-2">Manage homepage promotional banners</p>
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <FreeAccessToggle />
              <Link href="/admin/games">
               <Button variant="outline">Games</Button>
             </Link>

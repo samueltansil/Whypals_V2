@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { useFreeAccessMode } from "@/hooks/useFreeAccessMode";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import logo from "@assets/whypals-logo.png";
 import { Mail, Lock, Eye, EyeOff, Loader2, ArrowLeft } from "lucide-react";
 import { Helmet } from "@/lib/helmet";
+import LoginUnavailableNotice from "@/components/LoginUnavailableNotice";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -17,6 +19,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [redirectParam, setRedirectParam] = useState<string | null>(null);
   const { login, isLoggingIn, isAuthenticated } = useAuth();
+  const { freeAccessEnabled } = useFreeAccessMode();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
@@ -31,6 +34,12 @@ export default function Login() {
       navigate(redirectParam || "/");
     }
   }, [isAuthenticated, navigate, redirectParam]);
+
+  // The route/page itself stays live — this just swaps what renders at it
+  // whenever the site-wide "free access" switch (set from /admin/banners) is on.
+  if (freeAccessEnabled) {
+    return <LoginUnavailableNotice />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

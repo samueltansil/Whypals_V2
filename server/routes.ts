@@ -1557,6 +1557,33 @@ export async function registerRoutes(
     }
   });
 
+  // Free access mode: PUBLIC read (every visitor's browser needs to know
+  // whether to hide login/require-login gates), admin-only write. Toggled
+  // from /admin/banners.
+  app.get('/api/settings/free-access', async (req, res) => {
+    try {
+      const settings = await storage.getAutomationSettings();
+      res.json({ enabled: settings.freeAccessEnabled });
+    } catch (error) {
+      console.error("Error fetching free-access setting:", error);
+      res.json({ enabled: false });
+    }
+  });
+
+  app.post('/api/admin/settings/free-access', async (req: any, res) => {
+    try {
+      if (!await isValidAdminSession(req)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const enabled = !!req.body?.enabled;
+      const settings = await storage.setFreeAccessEnabled(enabled);
+      res.json({ enabled: settings.freeAccessEnabled });
+    } catch (error) {
+      console.error("Error updating free-access setting:", error);
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
   app.get('/api/banners/active', async (req, res) => {
     try {
       const banners = await storage.getActiveBanners();

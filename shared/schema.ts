@@ -440,6 +440,11 @@ export type Banner = typeof banners.$inferSelect;
 export const automationSettings = pgTable("automation_settings", {
   id: integer("id").primaryKey().default(1),
   autoPublishEnabled: boolean("auto_publish_enabled").default(true).notNull(),
+  // Site-wide "free access" switch (toggled from /admin/banners): when true,
+  // the login/register pages show a friendly "not needed right now" message
+  // instead of the real forms, the profile icon no longer links to login,
+  // and games no longer require being logged in to play.
+  freeAccessEnabled: boolean("free_access_enabled").default(false).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

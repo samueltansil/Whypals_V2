@@ -1,5 +1,5 @@
 import { Link, useParams, useLocation } from "wouter";
-import { ArrowLeft, Play, Trophy, Clock, Users, Gamepad2, CheckCircle, Star, Puzzle, Target, Sparkles, HelpCircle, Calendar, BarChart2 } from "lucide-react";
+import { ArrowLeft, Play, Trophy, Clock, Users, Gamepad2, CheckCircle, Star, Puzzle, Target, Sparkles, HelpCircle, Calendar, BarChart2, PenLine, Zap, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import logo from "@assets/whypals-logo.png";
 import { motion } from "framer-motion";
@@ -14,6 +14,9 @@ import MemoryMatchGame from "@/components/games/MemoryMatchGame";
 import QuizGame from "@/components/games/QuizGame";
 import TimelineGame from "@/components/games/TimelineGame";
 import PollGame from "@/components/games/PollGame";
+import FillBlankGame from "@/components/games/FillBlankGame";
+import TrueFalseGame from "@/components/games/TrueFalseGame";
+import PictureScrambleGame from "@/components/games/PictureScrambleGame";
 import { useGameAudio } from "@/hooks/useGameAudio";
 import { useActivityTracker } from "@/hooks/useActivityTracker";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +28,9 @@ const GAME_TYPE_ICONS: Record<string, typeof Puzzle> = {
   quiz: HelpCircle,
   timeline: Calendar,
   poll: BarChart2,
+  fillblank: PenLine,
+  truefalse: Zap,
+  scramble: ImageIcon,
 };
 
 const GAME_TYPE_COLORS: Record<string, string> = {
@@ -34,6 +40,9 @@ const GAME_TYPE_COLORS: Record<string, string> = {
   quiz: "bg-blue-100 text-blue-600",
   timeline: "bg-orange-100 text-orange-600",
   poll: "bg-indigo-100 text-indigo-600",
+  fillblank: "bg-cyan-100 text-cyan-600",
+  truefalse: "bg-yellow-100 text-yellow-600",
+  scramble: "bg-pink-100 text-pink-600",
 };
 
 export default function GamePreview() {
@@ -221,9 +230,39 @@ export default function GamePreview() {
             />
           )}
           {game.gameType === "poll" && (
-            <PollGame 
+            <PollGame
               gameId={game.id}
-              config={game.config as any} 
+              config={game.config as any}
+              onComplete={handleGameComplete}
+              onBack={handleBackToGames}
+              backgroundMusicUrl={(game as any).backgroundMusicUrl}
+              soundEffectsEnabled={(game as any).soundEffectsEnabled !== false}
+              pointsReward={game.pointsReward || 0}
+            />
+          )}
+          {game.gameType === "fillblank" && (
+            <FillBlankGame
+              config={game.config as any}
+              onComplete={handleGameComplete}
+              onBack={handleBackToGames}
+              backgroundMusicUrl={(game as any).backgroundMusicUrl}
+              soundEffectsEnabled={(game as any).soundEffectsEnabled !== false}
+              pointsReward={game.pointsReward || 0}
+            />
+          )}
+          {game.gameType === "truefalse" && (
+            <TrueFalseGame
+              config={game.config as any}
+              onComplete={handleGameComplete}
+              onBack={handleBackToGames}
+              backgroundMusicUrl={(game as any).backgroundMusicUrl}
+              soundEffectsEnabled={(game as any).soundEffectsEnabled !== false}
+              pointsReward={game.pointsReward || 0}
+            />
+          )}
+          {game.gameType === "scramble" && (
+            <PictureScrambleGame
+              config={game.config as any}
               onComplete={handleGameComplete}
               onBack={handleBackToGames}
               backgroundMusicUrl={(game as any).backgroundMusicUrl}

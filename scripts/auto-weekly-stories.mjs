@@ -80,19 +80,26 @@ function slugify(title) {
     .replace(/(^-|-$)/g, "");
 }
 
+// --- CLI args (parsed once, used throughout) ---
+// --date=YYYY-MM-DD     : pretend today is this date (for testing a specific week)
+// --theme="Some Theme"  : force this week's theme instead of looking it up in weekly-themes.json
+// --banner-only         : skip the 6 stories entirely, just (re)generate + activate the theme banner
+const CLI_ARGS = Object.fromEntries(
+  process.argv.slice(2).map((a) => {
+    const [k, ...rest] = a.replace(/^--/, "").split("=");
+    return [k, rest.join("=") || true];
+  })
+);
+
 function todayISO() {
-  const args = Object.fromEntries(
-    process.argv.slice(2).map((a) => {
-      const [k, ...rest] = a.replace(/^--/, "").split("=");
-      return [k, rest.join("=") || true];
-    })
-  );
-  if (args.date) return args.date; // allow --date=YYYY-MM-DD for manual testing
+  if (CLI_ARGS.date) return CLI_ARGS.date;
   const d = new Date();
   return d.toISOString().slice(0, 10);
 }
 
 function loadThemeForToday() {
+  if (CLI_ARGS.theme) return CLI_ARGS.theme;
+
   const path = join(__dirname, "weekly-themes.json");
   if (!existsSync(path)) {
     console.warn("No scripts/weekly-themes.json found — skipping themed stories.");
@@ -574,6 +581,13 @@ async function main() {
   // banner failure/refusal never gets skipped due to an earlier crash.
   if (theme) {
     await manageThemeBanner(token, theme);
+  } else if (CLI_ARGS["banner-only"]) {
+    console.warn("--banner-only set but no theme resolved — pass --theme=\"...\" too. Nothing to do.");
+  }
+
+  if (CLI_ARGS["banner-only"]) {
+    console.log("\n--banner-only set — skipping story generation.");
+    return;
   }
 
   const recentTitles = loadRecentTitles();

@@ -474,9 +474,9 @@ async function composeBannerImage(photoBuffer, theme, style) {
   <defs>
     <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0"/>
-      <stop offset="45%" stop-color="${scrimColor}" stop-opacity="0"/>
-      <stop offset="70%" stop-color="${scrimColor}" stop-opacity="0.25"/>
-      <stop offset="100%" stop-color="${scrimColor}" stop-opacity="0.75"/>
+      <stop offset="40%" stop-color="${scrimColor}" stop-opacity="0"/>
+      <stop offset="65%" stop-color="${scrimColor}" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="${scrimColor}" stop-opacity="0.88"/>
     </linearGradient>
     <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
       <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.55"/>

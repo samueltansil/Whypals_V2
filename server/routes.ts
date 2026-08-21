@@ -158,14 +158,29 @@ function preGenerateStoryAudioInBackground(storyId: number, content: string) {
 
 // --- Auto-generate one game per newly-published story ---
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
-const AUTO_GAME_TYPES = ["quiz", "timeline", "match", "poll", "puzzle"] as const;
+const UNSPLASH_ACCESS_KEY_FOR_GAMES = process.env.UNSPLASH_ACCESS_KEY;
+const AUTO_GAME_TYPES = ["quiz", "timeline", "match", "poll", "puzzle", "fillblank", "truefalse", "scramble"] as const;
+
+async function findGameImage(searchTerm: string): Promise<string | null> {
+  if (!UNSPLASH_ACCESS_KEY_FOR_GAMES) return null;
+  const query = encodeURIComponent(searchTerm);
+  const res = await fetch(
+    `https://api.unsplash.com/search/photos?query=${query}&per_page=3&orientation=landscape`,
+    { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY_FOR_GAMES}` } }
+  );
+  if (!res.ok) return null;
+  const data: any = await res.json();
+  const photo = data.results?.[0];
+  if (!photo) return null;
+  return `${photo.urls.raw}&w=1200&q=85&fit=max&auto=format`;
+}
 
 async function planGameForStory(story: { title: string; category: string[]; content: string }): Promise<any> {
   const truncatedContent = story.content.length > 4000
     ? story.content.slice(0, 4000) + "..."
     : story.content;
 
-  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. Read it and decide which ONE of these 5 game types best fits its content, then generate the actual game content for that type.
+  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. Read it and decide which ONE of these 8 game types best fits its content, then generate the actual game content for that type.
 
 Game types and when each fits well:
 - "quiz": the story has clear facts a reader could be asked comprehension questions about. Needs 4-5 multiple choice questions.
@@ -173,6 +188,9 @@ Game types and when each fits well:
 - "match": the story is full of distinct terms, names, or facts that naturally pair up (a word and its meaning, an animal and a trait, etc). Needs 4-6 pairs.
 - "poll": the story has a fun, opinion-based angle with no single right answer (e.g. "which of these would you rather..."). Needs 2-3 questions, each with 3-4 options.
 - "puzzle": the story is strongly visual/atmospheric without a clean set of quizzable facts. This just reuses the story's photo as a sliding puzzle, so pick this when nothing else fits well.
+- "fillblank": the story has strong individual sentences you could blank out a key word from to test close reading. Needs 4-5 sentences pulled/adapted from the story, each with one word replaced by "___", plus multiple choice options for the missing word.
+- "truefalse": the story has several standalone, clearly true or false factual claims you could quiz rapid-fire. Needs 6-8 short true/false statements.
+- "scramble": the story has ONE especially strong, concrete, visually-recognizable noun (an animal, place, or object — not an abstract concept) that would make a fun "guess the picture" word puzzle. Needs just that one word plus a short kid-friendly clue.
 
 Story title: ${story.title}
 Story category: ${story.category.join(", ")}
@@ -181,7 +199,7 @@ ${truncatedContent}
 
 Respond with ONLY valid JSON, no markdown fences, matching this exact shape (include ONLY the one config key that matches your chosen gameType — omit the other config keys entirely):
 {
-  "gameType": "quiz" | "timeline" | "match" | "poll" | "puzzle",
+  "gameType": "quiz" | "timeline" | "match" | "poll" | "puzzle" | "fillblank" | "truefalse" | "scramble",
   "title": "a short, fun game title, e.g. 'Ocean Wave Quiz'",
   "description": "one upbeat sentence describing the game, aimed at a kid",
   "funFacts": "one or two extra fun facts related to the story, kid-friendly",
@@ -215,6 +233,25 @@ Respond with ONLY valid JSON, no markdown fences, matching this exact shape (inc
     "gridSize": 3,
     "hintText": "...",
     "winMessage": "..."
+  },
+  "fillblankConfig": {
+    "blanks": [
+      { "id": "b1", "sentence": "Seahorses live in ___ water.", "options": ["salt", "fresh", "boiling", "frozen"], "correctIndex": 0, "explanation": "..." }
+    ],
+    "winMessage": "..."
+  },
+  "truefalseConfig": {
+    "statements": [
+      { "id": "s1", "statement": "...", "isTrue": true, "explanation": "..." }
+    ],
+    "secondsPerStatement": 8,
+    "winMessage": "..."
+  },
+  "scrambleConfig": {
+    "word": "SEAHORSE",
+    "imageSearchTerm": "seahorse underwater",
+    "clue": "This ocean animal's dads carry the babies!",
+    "winMessage": "..."
   }
 }`;
 
@@ -239,7 +276,7 @@ Respond with ONLY valid JSON, no markdown fences, matching this exact shape (inc
   return JSON.parse(jsonText);
 }
 
-function buildGameConfig(plan: any, story: { thumbnail: string }): any {
+async function buildGameConfig(plan: any, story: { thumbnail: string }): Promise<any> {
   switch (plan.gameType) {
     case "quiz":
       return plan.quizConfig;
@@ -258,6 +295,22 @@ function buildGameConfig(plan: any, story: { thumbnail: string }): any {
         hintText: plan.puzzleConfig?.hintText || "",
         winMessage: plan.puzzleConfig?.winMessage || "Puzzle Complete!",
       };
+    case "fillblank":
+      return plan.fillblankConfig;
+    case "truefalse":
+      return plan.truefalseConfig;
+    case "scramble": {
+      const word = (plan.scrambleConfig?.word || "").toString().trim();
+      const searchTerm = plan.scrambleConfig?.imageSearchTerm || word;
+      const imageUrl = word ? await findGameImage(searchTerm) : null;
+      if (!imageUrl) throw new Error("Could not find an image for the scramble word");
+      return {
+        imageUrl,
+        word,
+        clue: plan.scrambleConfig?.clue || "",
+        winMessage: plan.scrambleConfig?.winMessage || "You got it!",
+      };
+    }
     default:
       throw new Error(`Unrecognized gameType from Claude: "${plan.gameType}"`);
   }
@@ -289,6 +342,19 @@ function validateGameConfig(gameType: string, config: any): void {
     case "puzzle":
       if (!config.imageUrl) throw new Error("puzzle config missing imageUrl");
       break;
+    case "fillblank":
+      if (!Array.isArray(config.blanks) || config.blanks.length === 0) {
+        throw new Error("fillblank config missing blanks");
+      }
+      break;
+    case "truefalse":
+      if (!Array.isArray(config.statements) || config.statements.length === 0) {
+        throw new Error("truefalse config missing statements");
+      }
+      break;
+    case "scramble":
+      if (!config.imageUrl || !config.word) throw new Error("scramble config missing imageUrl or word");
+      break;
   }
 }
 
@@ -308,7 +374,7 @@ function generateGameForStoryInBackground(story: { id: number; title: string; ca
 
       console.log(`[game] Auto-generating a game for story ${story.id} ("${story.title}")...`);
       const plan = await planGameForStory(story);
-      const config = buildGameConfig(plan, story);
+      const config = await buildGameConfig(plan, story);
       validateGameConfig(plan.gameType, config);
 
       const game = await storage.createGame({

@@ -50,6 +50,10 @@
  *   --story="Exact Story Title"
  *                    force a specific story instead of picking randomly
  *                    (bypasses the "no existing game yet" filter too)
+ *   --type=quiz|timeline|match|poll|puzzle|fillblank|truefalse|scramble
+ *                    force this exact game type instead of letting Claude
+ *                    choose — combine with --story and --dry-run to test
+ *                    each type deterministically
  *
  * Uses the same .env.automation file as the other automation scripts
  * (project root).
@@ -117,6 +121,11 @@ const CLI_ARGS = Object.fromEntries(
 );
 const COUNT = CLI_ARGS.count ? parseInt(CLI_ARGS.count, 10) : DEFAULT_COUNT;
 const DRY_RUN = !!CLI_ARGS["dry-run"];
+const FORCE_TYPE = CLI_ARGS.type ? String(CLI_ARGS.type) : null;
+if (FORCE_TYPE && !GAME_TYPES.includes(FORCE_TYPE)) {
+  console.error(`--type must be one of: ${GAME_TYPES.join(", ")}`);
+  process.exit(1);
+}
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5);
@@ -172,14 +181,20 @@ async function createGame(token, gamePayload) {
 }
 
 // --- Claude: pick the best game type for a story + generate its content ---
-async function planGameForStory(story) {
+// Pass forceType to skip Claude's own judgment and require a specific type
+// (used by --type=... for testing each type deterministically).
+async function planGameForStory(story, forceType) {
   // Keep the prompt a reasonable size — the excerpt + a healthy chunk of
   // content is plenty of context without sending the whole article.
   const truncatedContent = story.content.length > 4000
     ? story.content.slice(0, 4000) + "..."
     : story.content;
 
-  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. Read it and decide which ONE of these 8 game types best fits its content, then generate the actual game content for that type.
+  const typeInstruction = forceType
+    ? `You MUST use gameType "${forceType}" for this one — do not pick a different type, even if another would fit better. Just do your best to make it work well for this story.`
+    : `Read it and decide which ONE of these 8 game types best fits its content, then generate the actual game content for that type.`;
+
+  const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. ${typeInstruction}
 
 Game types and when each fits well:
 - "quiz": the story has clear facts a reader could be asked comprehension questions about. Needs 4-5 multiple choice questions.
@@ -416,7 +431,7 @@ async function main() {
     console.log(`\n[${story.title}] Asking Claude to design a game...`);
     let plan;
     try {
-      plan = await planGameForStory(story);
+      plan = await planGameForStory(story, FORCE_TYPE);
     } catch (err) {
       console.warn(`[${story.title}] Failed to plan a game, skipping:`, err.message);
       continue;

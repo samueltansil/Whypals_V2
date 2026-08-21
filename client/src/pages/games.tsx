@@ -454,10 +454,13 @@ export default function Games() {
                     <h3 className="font-heading text-xl md:text-2xl font-bold mb-2 text-foreground line-clamp-2">{game.title}</h3>
                     <p className="text-xs md:text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">{game.description || "A fun learning game!"}</p>
                     <div className="flex items-center justify-between gap-2 mt-auto pt-2">
-                      <span className="text-sm font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap shrink-0">
+                      <span className="text-xs md:text-sm font-bold text-muted-foreground bg-muted px-2 md:px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap shrink min-w-0">
                         <Trophy className="w-3 h-3 shrink-0" /> {game.pointsReward} pts
                       </span>
-                      <Button className="rounded-full font-bold shrink-0" size="sm" data-testid={`button-play-${game.id}`}>Play Game</Button>
+                      <Button className="rounded-full font-bold px-3 md:px-4 text-xs md:text-sm shrink-0" size="sm" data-testid={`button-play-${game.id}`}>
+                        <span className="md:hidden">Play</span>
+                        <span className="hidden md:inline">Play Game</span>
+                      </Button>
                     </div>
                   </motion.div>
                 </Link>

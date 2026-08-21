@@ -13,9 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import logo from "@assets/whypals-logo.png";
-import type { StoryGame, PuzzleGameConfig, WhackGameConfig, MatchGameConfig, QuizGameConfig, TimelineGameConfig, PollGameConfig, FillBlankGameConfig, TrueFalseGameConfig, PictureScrambleGameConfig } from "@shared/schema";
+import type { StoryGame, PuzzleGameConfig, WhackGameConfig, MatchGameConfig, QuizGameConfig, TimelineGameConfig, PollGameConfig, FillBlankGameConfig, TrueFalseGameConfig, PictureScrambleGameConfig, GuessNumberGameConfig, OddOneOutGameConfig, EmojiDecoderGameConfig } from "@shared/schema";
 import { CATEGORIES as ALL_CATEGORIES } from "@/lib/data";
 
+// Full list of every type that can exist in the database, including legacy
+// "match" (Memory Match) — used for labels/icons/filtering so old games
+// still display correctly.
 const GAME_TYPES = [
   { value: "puzzle", label: "Puzzle", icon: "🧩" },
   { value: "whack", label: "Whack-a-Mole", icon: "🎯" },
@@ -26,7 +29,15 @@ const GAME_TYPES = [
   { value: "fillblank", label: "Fill in the Blank", icon: "✏️" },
   { value: "truefalse", label: "True/False Speed Round", icon: "⚡" },
   { value: "scramble", label: "Picture Word Scramble", icon: "🖼️" },
+  { value: "guessnumber", label: "Guess the Number", icon: "🔢" },
+  { value: "oddoneout", label: "Odd One Out", icon: "🔎" },
+  { value: "emojidecoder", label: "Emoji Decoder", icon: "😄" },
 ];
+
+// "match" is retired — no longer offered when picking a type for a NEW game
+// (it's still fully viewable/editable on any existing match-type game via
+// GAME_TYPES above, and MatchConfigEditor/its render block are untouched).
+const CREATABLE_GAME_TYPES = GAME_TYPES.filter((t) => t.value !== "match");
 
 const CATEGORIES = ALL_CATEGORIES.map(c => c.id);
 
@@ -1027,6 +1038,245 @@ function PictureScrambleConfigEditor({ config, onChange }: { config: PictureScra
   );
 }
 
+function GuessNumberConfigEditor({ config, onChange }: { config: GuessNumberGameConfig; onChange: (config: GuessNumberGameConfig) => void }) {
+  return (
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <Label>Question</Label>
+        <Textarea
+          value={config.question || ""}
+          onChange={(e) => onChange({ ...config, question: e.target.value })}
+          placeholder="How many times per second can a woodpecker peck?"
+          rows={2}
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Answer (number)</Label>
+          <Input
+            type="number"
+            value={Number.isFinite(config.answer) ? config.answer : 0}
+            onChange={(e) => onChange({ ...config, answer: parseFloat(e.target.value) || 0 })}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label>Unit (optional)</Label>
+          <Input
+            value={config.unit || ""}
+            onChange={(e) => onChange({ ...config, unit: e.target.value })}
+            placeholder="pecks per second"
+          />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <Label>Max Guesses</Label>
+        <Input
+          type="number"
+          value={config.maxGuesses ?? 6}
+          onChange={(e) => onChange({ ...config, maxGuesses: parseInt(e.target.value) || 6 })}
+          className="w-32"
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Fun Fact After (optional)</Label>
+        <Textarea
+          value={config.funFactAfter || ""}
+          onChange={(e) => onChange({ ...config, funFactAfter: e.target.value })}
+          placeholder="Shown after the answer is revealed"
+          rows={2}
+        />
+      </div>
+      <div className="space-y-2">
+        <Label>Win Message</Label>
+        <Input
+          value={config.winMessage || ""}
+          onChange={(e) => onChange({ ...config, winMessage: e.target.value })}
+          placeholder="You nailed it!"
+        />
+      </div>
+    </div>
+  );
+}
+
+function OddOneOutConfigEditor({ config, onChange }: { config: OddOneOutGameConfig; onChange: (config: OddOneOutGameConfig) => void }) {
+  const rounds = config.rounds || [];
+
+  const addRound = () => {
+    onChange({
+      ...config,
+      rounds: [...rounds, { id: `round-${Date.now()}`, statements: ["", "", "", ""], fakeIndex: 0, explanation: "" }]
+    });
+  };
+
+  const updateRound = (index: number, field: string, value: any) => {
+    const newRounds = [...rounds];
+    newRounds[index] = { ...newRounds[index], [field]: value };
+    onChange({ ...config, rounds: newRounds });
+  };
+
+  const updateStatement = (rIndex: number, sIndex: number, value: string) => {
+    const newRounds = [...rounds];
+    const newStatements = [...newRounds[rIndex].statements];
+    newStatements[sIndex] = value;
+    newRounds[rIndex] = { ...newRounds[rIndex], statements: newStatements };
+    onChange({ ...config, rounds: newRounds });
+  };
+
+  const removeRound = (index: number) => {
+    onChange({ ...config, rounds: rounds.filter((_, i) => i !== index) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label>Rounds (4 statements each, one is fake)</Label>
+        <Button type="button" variant="outline" size="sm" onClick={addRound}>
+          <Plus className="w-4 h-4 mr-1" /> Add Round
+        </Button>
+      </div>
+      <div className="space-y-4 max-h-96 overflow-y-auto">
+        {rounds.map((r, rIndex) => (
+          <div key={r.id} className="p-4 bg-muted/50 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Round {rIndex + 1}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeRound(rIndex)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <div className="space-y-2">
+              {r.statements.map((stmt, sIndex) => (
+                <div key={sIndex} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name={`fake-${rIndex}`}
+                    checked={r.fakeIndex === sIndex}
+                    onChange={() => updateRound(rIndex, 'fakeIndex', sIndex)}
+                    title="Mark as the fake (NOT true) statement"
+                  />
+                  <Input
+                    value={stmt}
+                    onChange={(e) => updateStatement(rIndex, sIndex, e.target.value)}
+                    placeholder={`Statement ${sIndex + 1}`}
+                    className="flex-1"
+                  />
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">Select the radio next to the fake (not true) statement.</p>
+            <Input
+              value={r.explanation || ""}
+              onChange={(e) => updateRound(rIndex, 'explanation', e.target.value)}
+              placeholder="Explanation (shown after answer)"
+            />
+          </div>
+        ))}
+      </div>
+      {rounds.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-4">Add rounds with 4 statements each</p>
+      )}
+      <div className="space-y-2">
+        <Label>Win Message</Label>
+        <Input
+          value={config.winMessage || ""}
+          onChange={(e) => onChange({ ...config, winMessage: e.target.value })}
+          placeholder="Great detective work!"
+        />
+      </div>
+    </div>
+  );
+}
+
+function EmojiDecoderConfigEditor({ config, onChange }: { config: EmojiDecoderGameConfig; onChange: (config: EmojiDecoderGameConfig) => void }) {
+  const rounds = config.rounds || [];
+
+  const addRound = () => {
+    onChange({
+      ...config,
+      rounds: [...rounds, { id: `round-${Date.now()}`, emojiClue: "", options: ["", "", "", ""], correctIndex: 0, explanation: "" }]
+    });
+  };
+
+  const updateRound = (index: number, field: string, value: any) => {
+    const newRounds = [...rounds];
+    newRounds[index] = { ...newRounds[index], [field]: value };
+    onChange({ ...config, rounds: newRounds });
+  };
+
+  const updateOption = (rIndex: number, oIndex: number, value: string) => {
+    const newRounds = [...rounds];
+    const newOptions = [...newRounds[rIndex].options];
+    newOptions[oIndex] = value;
+    newRounds[rIndex] = { ...newRounds[rIndex], options: newOptions };
+    onChange({ ...config, rounds: newRounds });
+  };
+
+  const removeRound = (index: number) => {
+    onChange({ ...config, rounds: rounds.filter((_, i) => i !== index) });
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <Label>Rounds</Label>
+        <Button type="button" variant="outline" size="sm" onClick={addRound}>
+          <Plus className="w-4 h-4 mr-1" /> Add Round
+        </Button>
+      </div>
+      <div className="space-y-4 max-h-96 overflow-y-auto">
+        {rounds.map((r, rIndex) => (
+          <div key={r.id} className="p-4 bg-muted/50 rounded-lg space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Round {rIndex + 1}</span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => removeRound(rIndex)}>
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </div>
+            <Input
+              value={r.emojiClue}
+              onChange={(e) => updateRound(rIndex, 'emojiClue', e.target.value)}
+              placeholder="🦔🌰❄️"
+            />
+            <div className="grid grid-cols-2 gap-2">
+              {r.options.map((opt, oIndex) => (
+                <div key={oIndex} className="flex items-center gap-2">
+                  <input
+                    type="radio"
+                    name={`correct-emoji-${rIndex}`}
+                    checked={r.correctIndex === oIndex}
+                    onChange={() => updateRound(rIndex, 'correctIndex', oIndex)}
+                  />
+                  <Input
+                    value={opt}
+                    onChange={(e) => updateOption(rIndex, oIndex, e.target.value)}
+                    placeholder={`Option ${String.fromCharCode(65 + oIndex)}`}
+                    className="flex-1"
+                  />
+                </div>
+              ))}
+            </div>
+            <Input
+              value={r.explanation || ""}
+              onChange={(e) => updateRound(rIndex, 'explanation', e.target.value)}
+              placeholder="Explanation (shown after answer)"
+            />
+          </div>
+        ))}
+      </div>
+      {rounds.length === 0 && (
+        <p className="text-sm text-muted-foreground text-center py-4">Add emoji clues with multiple choice answers</p>
+      )}
+      <div className="space-y-2">
+        <Label>Win Message</Label>
+        <Input
+          value={config.winMessage || ""}
+          onChange={(e) => onChange({ ...config, winMessage: e.target.value })}
+          placeholder="You cracked the code!"
+        />
+      </div>
+    </div>
+  );
+}
+
 function GameForm({
   game, 
   onSave, 
@@ -1077,6 +1327,12 @@ function GameForm({
         return { statements: [], secondsPerStatement: 8, winMessage: "Speedy work!" };
       case "scramble":
         return { imageUrl: "", word: "", clue: "", winMessage: "You got it!" };
+      case "guessnumber":
+        return { question: "", answer: 0, unit: "", maxGuesses: 6, funFactAfter: "", winMessage: "You nailed it!" };
+      case "oddoneout":
+        return { rounds: [], winMessage: "Great detective work!" };
+      case "emojidecoder":
+        return { rounds: [], winMessage: "You cracked the code!" };
       default:
         return {};
     }
@@ -1086,6 +1342,13 @@ function GameForm({
     setGameType(newType);
     setConfig(getDefaultConfig(newType));
   };
+
+  // "match" is retired from the creation picker, but an existing match game
+  // being edited still needs its current type visible in the dropdown.
+  const availableGameTypes =
+    gameType === "match" && !CREATABLE_GAME_TYPES.some((t) => t.value === "match")
+      ? [...CREATABLE_GAME_TYPES, GAME_TYPES.find((t) => t.value === "match")!]
+      : CREATABLE_GAME_TYPES;
 
   useEffect(() => {
     if (game) {
@@ -1142,7 +1405,7 @@ function GameForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {GAME_TYPES.map((type) => (
+                  {availableGameTypes.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.icon} {type.label}
                     </SelectItem>
@@ -1329,6 +1592,15 @@ function GameForm({
           )}
           {gameType === "scramble" && (
             <PictureScrambleConfigEditor config={config as PictureScrambleGameConfig} onChange={setConfig} />
+          )}
+          {gameType === "guessnumber" && (
+            <GuessNumberConfigEditor config={config as GuessNumberGameConfig} onChange={setConfig} />
+          )}
+          {gameType === "oddoneout" && (
+            <OddOneOutConfigEditor config={config as OddOneOutGameConfig} onChange={setConfig} />
+          )}
+          {gameType === "emojidecoder" && (
+            <EmojiDecoderConfigEditor config={config as EmojiDecoderGameConfig} onChange={setConfig} />
           )}
         </TabsContent>
       </Tabs>

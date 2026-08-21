@@ -16,11 +16,15 @@
  *   node scripts/auto-weekly-stories.mjs
  *
  * Uses the same .env.automation file as auto-story.mjs (project root).
+ *
+ * Requires the "sharp" package for the banner text overlay:
+ *   npm install sharp --legacy-peer-deps
  */
 
 import { readFileSync, existsSync, writeFileSync } from "fs";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
+import sharp from "sharp";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -333,13 +337,17 @@ async function uploadBannerImage(token, buffer, mimeType) {
   return data.imageUrl;
 }
 
-// --- Pollinations.ai: generate the illustrated weekly theme banner ---
-// Free, no API key, no billing. Quality/text-legibility is less consistent
-// than a paid model, so we retry a couple of times before giving up.
-async function generateThemeBannerImage(theme) {
-  const prompt = `Bright playful flat-vector cartoon illustration banner for a kids educational website homepage. Bold clear headline text reading exactly "${theme}" in a fun rounded children's book font. 2-3 cute simple characters or objects representing the theme "${theme}". Cheerful colorful palette, rounded shapes, no photorealism, no watermark, no extra text besides the headline, wide landscape hero banner.`;
+// --- Pollinations.ai: generate a TEXT-FREE illustrated background ---
+// Free, no API key, no billing. Open image models are unreliable at
+// rendering legible text, so we never ask it to draw any — the headline
+// is composited on afterward with real rendered text (see composeBannerImage).
+const BANNER_WIDTH = 1200;
+const BANNER_HEIGHT = 630;
 
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1200&height=630&nologo=true&model=flux`;
+async function generateBannerBackground(theme) {
+  const prompt = `Bright playful flat-vector cartoon illustration background for a kids educational website banner. Cute simple characters and objects representing the theme "${theme}". Cheerful colorful palette, rounded shapes, no photorealism, no watermark. Absolutely no text, no words, no letters, no writing, no typography anywhere in the image. Wide landscape composition with open space in the lower-middle area for a text overlay to be added later.`;
+
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${BANNER_WIDTH}&height=${BANNER_HEIGHT}&nologo=true&model=flux`;
 
   const MAX_ATTEMPTS = 3;
   let lastErr;
@@ -351,14 +359,64 @@ async function generateThemeBannerImage(theme) {
       if (!contentType.startsWith("image/")) {
         throw new Error(`Pollinations did not return an image (got ${contentType || "unknown content-type"})`);
       }
-      const buffer = Buffer.from(await res.arrayBuffer());
-      return { buffer, mimeType: contentType.split(";")[0] || "image/jpeg" };
+      return Buffer.from(await res.arrayBuffer());
     } catch (err) {
       lastErr = err;
       console.warn(`[banner] Pollinations attempt ${attempt}/${MAX_ATTEMPTS} failed:`, err.message);
     }
   }
   throw lastErr;
+}
+
+function escapeXml(s) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+// Stamps the theme title onto the background as real, guaranteed-legible
+// text (bold rounded font, dark outline, semi-transparent backing pill for
+// contrast against any background) instead of relying on the AI model to
+// draw it. Returns a PNG buffer.
+async function composeBannerImage(backgroundBuffer, theme) {
+  const fitted = await sharp(backgroundBuffer)
+    .resize(BANNER_WIDTH, BANNER_HEIGHT, { fit: "cover" })
+    .png()
+    .toBuffer();
+
+  // Rough width estimate to size the backing pill: ~0.6em per character at this weight/size.
+  const fontSize = theme.length > 22 ? 56 : theme.length > 15 ? 68 : 84;
+  const estTextWidth = theme.length * fontSize * 0.62;
+  const pillWidth = Math.min(BANNER_WIDTH - 80, estTextWidth + 100);
+  const pillHeight = fontSize + 60;
+  const pillX = (BANNER_WIDTH - pillWidth) / 2;
+  const pillY = BANNER_HEIGHT * 0.62 - pillHeight / 2;
+
+  const svg = `
+<svg width="${BANNER_WIDTH}" height="${BANNER_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .headline {
+      font-family: 'DejaVu Sans', Verdana, Arial, sans-serif;
+      font-weight: 900;
+      font-size: ${fontSize}px;
+      fill: #FFFFFF;
+      stroke: #1a3c6e;
+      stroke-width: 8;
+      paint-order: stroke fill;
+    }
+  </style>
+  <rect x="${pillX}" y="${pillY}" width="${pillWidth}" height="${pillHeight}" rx="${pillHeight / 2}"
+        fill="#0f2a52" fill-opacity="0.35" />
+  <text x="50%" y="${BANNER_HEIGHT * 0.62 + fontSize * 0.32}" text-anchor="middle" class="headline">${escapeXml(theme)}</text>
+</svg>`;
+
+  return sharp(fitted)
+    .composite([{ input: Buffer.from(svg), top: 0, left: 0 }])
+    .png()
+    .toBuffer();
 }
 
 // --- Local tracking of the last auto-created theme banner, so next week's
@@ -383,11 +441,14 @@ function saveLastBanner(bannerId, theme) {
 // should never take down the story batch.
 async function manageThemeBanner(token, theme) {
   try {
-    console.log(`\n[banner] Generating banner image for "${theme}"...`);
-    const { buffer, mimeType } = await generateThemeBannerImage(theme);
+    console.log(`\n[banner] Generating background illustration for "${theme}"...`);
+    const background = await generateBannerBackground(theme);
+
+    console.log("[banner] Compositing headline text onto banner...");
+    const finalImage = await composeBannerImage(background, theme);
 
     console.log("[banner] Uploading banner image...");
-    const imageUrl = await uploadBannerImage(token, buffer, mimeType);
+    const imageUrl = await uploadBannerImage(token, finalImage, "image/png");
 
     const last = loadLastBanner();
     if (last?.bannerId) {

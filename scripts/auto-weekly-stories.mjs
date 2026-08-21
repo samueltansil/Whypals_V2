@@ -421,16 +421,36 @@ function escapeXml(s) {
     .replace(/'/g, "&apos;");
 }
 
-// Composites a bold headline over a soft bottom gradient scrim (no boxed
-// "pill" — a dark-to-transparent gradient like a movie poster or blog
-// hero image), plus a small, unobtrusive Unsplash photo credit.
+// The site displays this same 1200x630 image in very different crops:
+// desktop shows most/all of it, but mobile puts it in a much narrower
+// aspect-[4/3] box via object-cover AND applies an extra 110% CSS zoom
+// just for banners — which together only show roughly the centered
+// x:220-980, y:30-600 region of the original image. Anything outside that
+// (like text anchored near the left edge) gets cropped off on mobile.
+const MOBILE_SAFE_WIDTH = 760; // px, centered
+const MOBILE_SAFE_MAX_TEXT_WIDTH = MOBILE_SAFE_WIDTH - 80; // margin inside the safe zone
+
+// Composites a bold, centered headline over a soft bottom gradient scrim
+// (no boxed "pill" — a dark-to-transparent gradient like a movie poster or
+// blog hero image), sized and centered to stay inside the mobile-safe zone
+// above, plus a small, unobtrusive Unsplash photo credit.
 async function composeBannerImage(photoBuffer, theme, style, credit) {
   const fitted = await sharp(photoBuffer)
     .resize(BANNER_WIDTH, BANNER_HEIGHT, { fit: "cover" })
     .png()
     .toBuffer();
 
-  const fontSize = theme.length > 26 ? 52 : theme.length > 18 ? 64 : theme.length > 12 ? 78 : 92;
+  // Shrink font size until the (roughly estimated) text width fits inside
+  // the mobile-safe zone, so the headline survives the mobile crop+zoom.
+  const CHAR_WIDTH_FACTOR = 0.62; // rough average glyph width as a fraction of font-size, for this bold font
+  let fontSize = 92;
+  while (
+    fontSize > 32 &&
+    theme.length * fontSize * CHAR_WIDTH_FACTOR > MOBILE_SAFE_MAX_TEXT_WIDTH
+  ) {
+    fontSize -= 2;
+  }
+
   const textColor = /^#[0-9a-f]{6}$/i.test(style?.textColor || "") ? style.textColor : "#FFFFFF";
   const scrimColor = /^#[0-9a-f]{6}$/i.test(style?.scrimColor || "") ? style.scrimColor : "#04203d";
 
@@ -447,10 +467,10 @@ async function composeBannerImage(photoBuffer, theme, style, credit) {
     </filter>
   </defs>
   <rect x="0" y="${BANNER_HEIGHT * 0.35}" width="${BANNER_WIDTH}" height="${BANNER_HEIGHT * 0.65}" fill="url(#scrim)" />
-  <text x="64" y="${BANNER_HEIGHT - 100}" text-anchor="start"
+  <text x="50%" y="${BANNER_HEIGHT - 100}" text-anchor="middle"
         font-family="'DejaVu Sans', Verdana, Arial, sans-serif" font-weight="900"
         font-size="${fontSize}" letter-spacing="1" fill="${textColor}" filter="url(#shadow)">${escapeXml(theme)}</text>
-  <text x="${BANNER_WIDTH - 24}" y="${BANNER_HEIGHT - 20}" text-anchor="end"
+  <text x="50%" y="${BANNER_HEIGHT - 35}" text-anchor="middle"
         font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#ffffff" fill-opacity="0.6">${escapeXml(credit || "")}</text>
 </svg>`;
 

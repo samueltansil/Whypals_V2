@@ -851,7 +851,18 @@ export async function registerRoutes(
       });
 
       const origin = req.headers.origin || `${req.protocol}://${req.get('host')}`;
-      await sendParentVerificationEmail(parentEmail, code, token, origin);
+      const emailSent = await sendParentVerificationEmail(parentEmail, code, token, origin);
+
+      if (!emailSent) {
+        // The verification request row still exists so the admin can see it
+        // and manually resend/approve — but don't tell the user it worked
+        // when they have no email to click, since there's no way for them
+        // to complete signup otherwise.
+        return res.status(502).json({
+          success: false,
+          message: "Your account details were saved, but we couldn't send the verification email right now. Please try again in a few minutes or contact support.",
+        });
+      }
 
       res.status(201).json({
         success: true,

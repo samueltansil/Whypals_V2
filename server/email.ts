@@ -1,13 +1,27 @@
 import nodemailer from "nodemailer";
 
-// Create reusable transporter object using the default SMTP transport
+// Create reusable transporter object using the default SMTP transport.
+// Accepts either SMTP_* or EMAIL_* names for host/port/user/pass so this
+// works whichever convention the deployed .env actually uses — the auth
+// fields in particular used to only read EMAIL_USER/EMAIL_PASSWORD, which
+// meant a .env set up with SMTP_USER/SMTP_PASS (as WhyPals' actually is)
+// left the transporter with NO credentials at all, failing every send.
+const SMTP_HOST = process.env.SMTP_HOST || process.env.EMAIL_HOST || "smtp.gmail.com";
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || "587");
+const SMTP_USER = process.env.SMTP_USER || process.env.EMAIL_USER;
+const SMTP_PASS = process.env.SMTP_PASS || process.env.EMAIL_PASSWORD;
+
+if (!SMTP_USER || !SMTP_PASS) {
+  console.warn("[email] No SMTP_USER/SMTP_PASS (or EMAIL_USER/EMAIL_PASSWORD) configured — outgoing email will fail.");
+}
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || process.env.EMAIL_HOST || "smtp.gmail.com",
-  port: parseInt(process.env.SMTP_PORT || process.env.EMAIL_PORT || "587"),
-  secure: process.env.EMAIL_SECURE === "true" || parseInt(process.env.SMTP_PORT || "587") === 465, // true for 465, false for other ports
+  host: SMTP_HOST,
+  port: SMTP_PORT,
+  secure: process.env.EMAIL_SECURE === "true" || SMTP_PORT === 465, // true for 465, false for other ports
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD,
+    user: SMTP_USER,
+    pass: SMTP_PASS,
   },
 });
 
@@ -15,7 +29,10 @@ export async function sendPasswordResetEmail(email: string, token: string, origi
   const resetLink = `${origin}/reset-password?token=${token}`;
   
   const mailOptions = {
-    from: process.env.EMAIL_FROM || '"WhyPals" <noreply@whypals.com>',
+    // Default to the actual authenticated mailbox, not an arbitrary
+    // noreply@ address — most SMTP providers (Hostinger included) reject or
+    // spam-filter mail whose From doesn't match the account that logged in.
+    from: process.env.EMAIL_FROM || `"WhyPals" <${SMTP_USER}>`,
     to: email,
     subject: "Password Reset Request",
     html: `
@@ -42,7 +59,7 @@ export async function sendParentVerificationEmail(
   token: string,
   origin: string = 'https://whypals.com',
 ) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!SMTP_USER || !SMTP_PASS) {
     console.warn('SMTP credentials not found in environment variables. Email sending skipped.');
     console.log(`Mock parent verification email to ${parentEmail}: code ${code}, token ${token}`);
     return false;
@@ -51,7 +68,7 @@ export async function sendParentVerificationEmail(
   const verifyLink = `${origin}/verify-parent?token=${token}`;
 
   const mailOptions = {
-    from: `"WhyPals Support" <${process.env.SMTP_USER}>`,
+    from: `"WhyPals Support" <${SMTP_USER}>`,
     replyTo: "admin@whypals.com",
     to: parentEmail,
     subject: 'WhyPals Parent or Guardian Email Verification',

@@ -15,10 +15,14 @@
  * Run manually:
  *   node scripts/auto-weekly-stories.mjs
  *
- * Uses the same .env.automation file as auto-story.mjs (project root).
- *
- * Requires the "sharp" package for the banner text overlay:
+ * Also generates the weekly theme banner automatically: Claude picks the
+ * best-fitting real photo from an Unsplash search for the theme, picks a
+ * matching text color + gradient tint, and the headline is stamped on with
+ * "sharp" (a real gradient scrim + drop shadow, not AI-drawn text) so it's
+ * always legible. Requires the "sharp" package:
  *   npm install sharp --legacy-peer-deps
+ *
+ * Uses the same .env.automation file as auto-story.mjs (project root).
  */
 
 import { readFileSync, existsSync, writeFileSync } from "fs";
@@ -337,35 +341,68 @@ async function uploadBannerImage(token, buffer, mimeType) {
   return data.imageUrl;
 }
 
-// --- Pollinations.ai: generate a TEXT-FREE illustrated background ---
-// Free, no API key, no billing. Open image models are unreliable at
-// rendering legible text, so we never ask it to draw any — the headline
-// is composited on afterward with real rendered text (see composeBannerImage).
+// --- Banner: a real Unsplash photo + AI-picked photo/style + rendered headline ---
+// Claude does two jobs here: (1) pick the best-fitting photo from a shortlist
+// of real Unsplash search results, using their descriptions/colors — no
+// AI-drawn art, so no garbled-text risk; (2) pick a text color + a scrim
+// tint that suits that specific photo's mood, so the styling actually
+// varies week to week instead of being one hardcoded look.
 const BANNER_WIDTH = 1200;
 const BANNER_HEIGHT = 630;
 
-async function generateBannerBackground(theme) {
-  const prompt = `Bright playful flat-vector cartoon illustration background for a kids educational website banner. Cute simple characters and objects representing the theme "${theme}". Cheerful colorful palette, rounded shapes, no photorealism, no watermark. Absolutely no text, no words, no letters, no writing, no typography anywhere in the image. Wide landscape composition with open space in the lower-middle area for a text overlay to be added later.`;
+async function searchUnsplashCandidates(theme) {
+  const query = encodeURIComponent(theme.replace(/\bweek\b/i, "").trim() || theme);
+  const res = await fetch(
+    `https://api.unsplash.com/search/photos?query=${query}&per_page=8&orientation=landscape`,
+    { headers: { Authorization: `Client-ID ${UNSPLASH_ACCESS_KEY}` } }
+  );
+  if (!res.ok) throw new Error(`Unsplash API error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  return (data.results || []).map((p) => ({
+    url: p.urls.regular,
+    credit: `Photo by ${p.user.name} on Unsplash`,
+    description: p.description || p.alt_description || "",
+    color: p.color,
+  }));
+}
 
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${BANNER_WIDTH}&height=${BANNER_HEIGHT}&nologo=true&model=flux`;
+// --- Claude: pick the best candidate photo + a matching text style ---
+async function pickBannerPhotoAndStyle(theme, candidates) {
+  const listing = candidates
+    .map((c, i) => `${i}: description="${c.description || "(none)"}", dominant color=${c.color || "unknown"}`)
+    .join("\n");
 
-  const MAX_ATTEMPTS = 3;
-  let lastErr;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    try {
-      const res = await fetch(url, { headers: { Accept: "image/*" } });
-      if (!res.ok) throw new Error(`Pollinations API error ${res.status}: ${await res.text()}`);
-      const contentType = res.headers.get("content-type") || "";
-      if (!contentType.startsWith("image/")) {
-        throw new Error(`Pollinations did not return an image (got ${contentType || "unknown content-type"})`);
-      }
-      return Buffer.from(await res.arrayBuffer());
-    } catch (err) {
-      lastErr = err;
-      console.warn(`[banner] Pollinations attempt ${attempt}/${MAX_ATTEMPTS} failed:`, err.message);
-    }
-  }
-  throw lastErr;
+  const prompt = `You are styling a hero banner image for a kids' educational website. This week's theme is "${theme}".
+
+Here are real photo candidates found via Unsplash search (index: description, dominant color):
+${listing}
+
+Pick the single best photo for a wide banner background representing this theme (prefer clear, evocative, uncluttered photos — avoid ones with existing text/logos implied by the description, avoid close-up faces of real identifiable people). Then choose a text style for a bold headline that will sit over the BOTTOM portion of that photo on a dark gradient scrim:
+- "textColor": a hex color for the headline text that will read clearly on a dark scrim (usually a bright white or warm cream, occasionally a bright accent color if it suits the theme)
+- "scrimColor": a hex color for the gradient shadow behind the text, chosen to harmonize with the photo's dominant color (e.g. a deep navy for ocean photos, a warm deep brown for autumn/school photos) rather than always plain black
+
+Respond with ONLY valid JSON, no markdown fences, in this exact shape:
+{ "bestIndex": 0, "textColor": "#FFFFFF", "scrimColor": "#04203d" }`;
+
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": ANTHROPIC_API_KEY,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5-20250929",
+      max_tokens: 300,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+
+  if (!res.ok) throw new Error(`Anthropic API error ${res.status}: ${await res.text()}`);
+  const data = await res.json();
+  const text = data.content?.[0]?.text?.trim() ?? "";
+  const jsonText = text.replace(/^```json\s*/i, "").replace(/```\s*$/i, "");
+  return JSON.parse(jsonText);
 }
 
 function escapeXml(s) {
@@ -377,40 +414,37 @@ function escapeXml(s) {
     .replace(/'/g, "&apos;");
 }
 
-// Stamps the theme title onto the background as real, guaranteed-legible
-// text (bold rounded font, dark outline, semi-transparent backing pill for
-// contrast against any background) instead of relying on the AI model to
-// draw it. Returns a PNG buffer.
-async function composeBannerImage(backgroundBuffer, theme) {
-  const fitted = await sharp(backgroundBuffer)
+// Composites a bold headline over a soft bottom gradient scrim (no boxed
+// "pill" — a dark-to-transparent gradient like a movie poster or blog
+// hero image), plus a small, unobtrusive Unsplash photo credit.
+async function composeBannerImage(photoBuffer, theme, style, credit) {
+  const fitted = await sharp(photoBuffer)
     .resize(BANNER_WIDTH, BANNER_HEIGHT, { fit: "cover" })
     .png()
     .toBuffer();
 
-  // Rough width estimate to size the backing pill: ~0.6em per character at this weight/size.
-  const fontSize = theme.length > 22 ? 56 : theme.length > 15 ? 68 : 84;
-  const estTextWidth = theme.length * fontSize * 0.62;
-  const pillWidth = Math.min(BANNER_WIDTH - 80, estTextWidth + 100);
-  const pillHeight = fontSize + 60;
-  const pillX = (BANNER_WIDTH - pillWidth) / 2;
-  const pillY = BANNER_HEIGHT * 0.62 - pillHeight / 2;
+  const fontSize = theme.length > 26 ? 52 : theme.length > 18 ? 64 : theme.length > 12 ? 78 : 92;
+  const textColor = /^#[0-9a-f]{6}$/i.test(style?.textColor || "") ? style.textColor : "#FFFFFF";
+  const scrimColor = /^#[0-9a-f]{6}$/i.test(style?.scrimColor || "") ? style.scrimColor : "#04203d";
 
   const svg = `
 <svg width="${BANNER_WIDTH}" height="${BANNER_HEIGHT}" xmlns="http://www.w3.org/2000/svg">
-  <style>
-    .headline {
-      font-family: 'DejaVu Sans', Verdana, Arial, sans-serif;
-      font-weight: 900;
-      font-size: ${fontSize}px;
-      fill: #FFFFFF;
-      stroke: #1a3c6e;
-      stroke-width: 8;
-      paint-order: stroke fill;
-    }
-  </style>
-  <rect x="${pillX}" y="${pillY}" width="${pillWidth}" height="${pillHeight}" rx="${pillHeight / 2}"
-        fill="#0f2a52" fill-opacity="0.35" />
-  <text x="50%" y="${BANNER_HEIGHT * 0.62 + fontSize * 0.32}" text-anchor="middle" class="headline">${escapeXml(theme)}</text>
+  <defs>
+    <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${scrimColor}" stop-opacity="0"/>
+      <stop offset="55%" stop-color="${scrimColor}" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="${scrimColor}" stop-opacity="0.82"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+  </defs>
+  <rect x="0" y="${BANNER_HEIGHT * 0.35}" width="${BANNER_WIDTH}" height="${BANNER_HEIGHT * 0.65}" fill="url(#scrim)" />
+  <text x="64" y="${BANNER_HEIGHT - 100}" text-anchor="start"
+        font-family="'DejaVu Sans', Verdana, Arial, sans-serif" font-weight="900"
+        font-size="${fontSize}" letter-spacing="1" fill="${textColor}" filter="url(#shadow)">${escapeXml(theme)}</text>
+  <text x="${BANNER_WIDTH - 24}" y="${BANNER_HEIGHT - 20}" text-anchor="end"
+        font-family="'DejaVu Sans', sans-serif" font-size="16" fill="#ffffff" fill-opacity="0.6">${escapeXml(credit || "")}</text>
 </svg>`;
 
   return sharp(fitted)
@@ -441,11 +475,24 @@ function saveLastBanner(bannerId, theme) {
 // should never take down the story batch.
 async function manageThemeBanner(token, theme) {
   try {
-    console.log(`\n[banner] Generating background illustration for "${theme}"...`);
-    const background = await generateBannerBackground(theme);
+    console.log(`\n[banner] Searching Unsplash for candidate photos for "${theme}"...`);
+    const candidates = await searchUnsplashCandidates(theme);
+    if (candidates.length === 0) {
+      console.warn("[banner] No Unsplash results for this theme — skipping banner.");
+      return;
+    }
+
+    console.log(`[banner] Asking Claude to pick the best of ${candidates.length} photos + a matching style...`);
+    const style = await pickBannerPhotoAndStyle(theme, candidates);
+    const chosen = candidates[style.bestIndex] || candidates[0];
+    console.log(`[banner] Picked photo #${style.bestIndex} (${chosen.credit}), textColor=${style.textColor}, scrimColor=${style.scrimColor}`);
+
+    const photoRes = await fetch(chosen.url);
+    if (!photoRes.ok) throw new Error(`Failed to download chosen photo: ${photoRes.status}`);
+    const photoBuffer = Buffer.from(await photoRes.arrayBuffer());
 
     console.log("[banner] Compositing headline text onto banner...");
-    const finalImage = await composeBannerImage(background, theme);
+    const finalImage = await composeBannerImage(photoBuffer, theme, style, chosen.credit);
 
     console.log("[banner] Uploading banner image...");
     const imageUrl = await uploadBannerImage(token, finalImage, "image/png");

@@ -1,24 +1,3 @@
-
-Cloud
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Auto story · MJS
 #!/usr/bin/env node
 /**
  * auto-story.mjs

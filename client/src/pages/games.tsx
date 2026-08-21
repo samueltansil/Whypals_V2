@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
-import { Search, Trophy, Menu, X, Home, Play, Gamepad2, GraduationCap, Settings, Puzzle, Sparkles, Target, HelpCircle, Calendar, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Trophy, Menu, X, Home, Play, Gamepad2, GraduationCap, Settings, Puzzle, Sparkles, Target, HelpCircle, Calendar, ChevronLeft, ChevronRight, BarChart2, PenLine, Zap, ImageIcon } from "lucide-react";
 import { CATEGORIES } from "@/lib/data";
 import gamesHero from "@assets/generated_images/kids_games_hero_illustration.png";
 import logo from "@assets/whypals-logo.png";
@@ -23,6 +23,10 @@ const GAME_TYPE_ICONS: Record<string, typeof Puzzle> = {
   match: Sparkles,
   quiz: HelpCircle,
   timeline: Calendar,
+  poll: BarChart2,
+  fillblank: PenLine,
+  truefalse: Zap,
+  scramble: ImageIcon,
 };
 
 const GAME_TYPE_COLORS: Record<string, string> = {
@@ -31,6 +35,10 @@ const GAME_TYPE_COLORS: Record<string, string> = {
   match: "bg-emerald-100 text-emerald-600",
   quiz: "bg-blue-100 text-blue-600",
   timeline: "bg-orange-100 text-orange-600",
+  poll: "bg-indigo-100 text-indigo-600",
+  fillblank: "bg-cyan-100 text-cyan-600",
+  truefalse: "bg-yellow-100 text-yellow-600",
+  scramble: "bg-pink-100 text-pink-600",
 };
 
 export default function Games() {

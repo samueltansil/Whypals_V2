@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
-import { Search, Trophy, Menu, X, Home, Play, Gamepad2, GraduationCap, Settings, Puzzle, Sparkles, Target, HelpCircle, Calendar, ChevronLeft, ChevronRight, BarChart2, PenLine, Zap, ImageIcon } from "lucide-react";
+import { Search, Trophy, Menu, X, Home, Play, Gamepad2, GraduationCap, Settings, Puzzle, Sparkles, Target, HelpCircle, Calendar, ChevronLeft, ChevronRight, BarChart2, PenLine, Zap, ImageIcon, Hash, Eye, Smile } from "lucide-react";
 import { CATEGORIES } from "@/lib/data";
 import gamesHero from "@assets/generated_images/kids_games_hero_illustration.png";
 import logo from "@assets/whypals-logo.png";
@@ -27,6 +27,9 @@ const GAME_TYPE_ICONS: Record<string, typeof Puzzle> = {
   fillblank: PenLine,
   truefalse: Zap,
   scramble: ImageIcon,
+  guessnumber: Hash,
+  oddoneout: Eye,
+  emojidecoder: Smile,
 };
 
 const GAME_TYPE_COLORS: Record<string, string> = {
@@ -39,6 +42,9 @@ const GAME_TYPE_COLORS: Record<string, string> = {
   fillblank: "bg-cyan-100 text-cyan-600",
   truefalse: "bg-yellow-100 text-yellow-600",
   scramble: "bg-pink-100 text-pink-600",
+  guessnumber: "bg-lime-100 text-lime-600",
+  oddoneout: "bg-rose-100 text-rose-600",
+  emojidecoder: "bg-amber-100 text-amber-600",
 };
 
 export default function Games() {
@@ -424,34 +430,34 @@ export default function Games() {
                 <Link key={game.id} href={`/game/${game.id}`}>
                   <motion.div
                     whileHover={{ y: -5, scale: 1.02 }}
-                    className="bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-primary/20 transition-all cursor-pointer group h-full"
+                    className="bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-primary/20 transition-all cursor-pointer group h-full flex flex-col"
                     data-testid={`card-game-${game.id}`}
                   >
-                    <div className="relative mb-4">
+                    <div className="relative mb-4 shrink-0">
                       {game.thumbnail ? (
-                        <img 
-                          src={game.thumbnail} 
+                        <img
+                          src={game.thumbnail}
                           alt={game.title}
                           className="w-full h-32 object-cover rounded-2xl"
                         />
                       ) : (
-                        <img 
-                          src={playPlaceholder} 
-                          alt="Play" 
-                          className="w-full h-32 object-cover rounded-2xl" 
+                        <img
+                          src={playPlaceholder}
+                          alt="Play"
+                          className="w-full h-32 object-cover rounded-2xl"
                         />
                       )}
                       <div className={`absolute -bottom-3 -right-3 w-14 h-14 rounded-xl ${colorClass} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
                         <GameIcon className="w-7 h-7" />
                       </div>
                     </div>
-                    <h3 className="font-heading text-xl md:text-2xl font-bold mb-2 text-foreground">{game.title}</h3>
-                    <p className="text-xs md:text-sm text-muted-foreground mb-4 line-clamp-2">{game.description || "A fun learning game!"}</p>
-                    <div className="flex items-center justify-between mt-auto">
-                      <span className="text-sm font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full flex items-center gap-1">
-                        <Trophy className="w-3 h-3" /> {game.pointsReward} pts
+                    <h3 className="font-heading text-xl md:text-2xl font-bold mb-2 text-foreground line-clamp-2">{game.title}</h3>
+                    <p className="text-xs md:text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">{game.description || "A fun learning game!"}</p>
+                    <div className="flex items-center justify-between gap-2 mt-auto pt-2">
+                      <span className="text-sm font-bold text-muted-foreground bg-muted px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap shrink-0">
+                        <Trophy className="w-3 h-3 shrink-0" /> {game.pointsReward} pts
                       </span>
-                      <Button className="rounded-full font-bold" size="sm" data-testid={`button-play-${game.id}`}>Play Game</Button>
+                      <Button className="rounded-full font-bold shrink-0" size="sm" data-testid={`button-play-${game.id}`}>Play Game</Button>
                     </div>
                   </motion.div>
                 </Link>

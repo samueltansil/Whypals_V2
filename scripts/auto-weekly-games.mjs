@@ -6,6 +6,15 @@
  * published story that doesn't have a game yet (games are linked to
  * stories by exact title match, per the existing "linkedStoryTitle" design).
  *
+ * Story selection prefers the last 6 published stories (normally that
+ * week's batch from auto-weekly-stories.mjs) — it picks 3 of THOSE at
+ * random, as long as they don't already have a game. If fewer than 3 of
+ * the last 6 are still gameless, it fills the rest from the wider pool of
+ * any gameless published story. So: run it once after publishing this
+ * week's 6 and it targets that batch; run it again any time after that
+ * (once the recent 6 are all gamed) and it just picks randomly from
+ * whatever published stories still don't have a game.
+ *
  * For each of the 3 stories picked, Claude reads the actual story content
  * and decides which of 5 game types best fits it:
  *   - quiz     : comprehension questions with 4 options + explanation
@@ -71,6 +80,7 @@ const WHYPALS_ADMIN_PASSWORD = process.env.WHYPALS_ADMIN_PASSWORD;
 
 const GAME_TYPES = ["quiz", "timeline", "match", "poll", "puzzle"];
 const DEFAULT_COUNT = 3;
+const RECENT_POOL_SIZE = 6; // prefer picking from the last N published stories (this week's batch) before falling back to the wider pool
 
 function requireEnv(name, value) {
   if (!value) {
@@ -296,14 +306,32 @@ async function main() {
     const existingTitles = new Set(
       games.map((g) => (g.linkedStoryTitle || "").trim()).filter(Boolean)
     );
-    const candidates = stories.filter((s) => !existingTitles.has(s.title.trim()));
-    if (candidates.length === 0) {
+    const gameless = stories.filter((s) => !existingTitles.has(s.title.trim()));
+    if (gameless.length === 0) {
       console.log("Every published story already has a game linked to it — nothing to do.");
       return;
     }
-    targetStories = shuffle(candidates).slice(0, Math.min(COUNT, candidates.length));
+
+    // Prefer the most recently published stories (highest id = newest,
+    // since ids are sequential) — this is normally this week's batch of 6.
+    // Falls back to the wider gameless pool once those run out, so running
+    // this again and again keeps finding more stories at random.
+    const sortedByRecency = [...stories].sort((a, b) => b.id - a.id);
+    const recentPool = sortedByRecency.slice(0, RECENT_POOL_SIZE);
+    const recentGameless = recentPool.filter((s) => !existingTitles.has(s.title.trim()));
+    const restGameless = gameless.filter((s) => !recentGameless.includes(s));
+
+    const fromRecent = shuffle(recentGameless).slice(0, COUNT);
+    const stillNeeded = COUNT - fromRecent.length;
+    const fromRest = stillNeeded > 0 ? shuffle(restGameless).slice(0, stillNeeded) : [];
+
+    targetStories = [...fromRecent, ...fromRest];
     console.log(
-      `${candidates.length} story(ies) have no game yet. Picking ${targetStories.length} at random.`
+      `${recentGameless.length}/${recentPool.length} of the last ${RECENT_POOL_SIZE} stories have no game yet.`
+    );
+    console.log(
+      `Picking ${fromRecent.length} from the recent batch` +
+        (fromRest.length ? ` + ${fromRest.length} at random from older stories.` : ".")
     );
   }
 

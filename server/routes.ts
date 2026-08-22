@@ -83,6 +83,7 @@ async function generateAndCacheAudio(text: string): Promise<{ audioUrl: string; 
 
   if (!timestampsResponse.ok) {
     const errorText = await timestampsResponse.text();
+    console.error(`[murf] ${timestampsResponse.status} ${timestampsResponse.statusText} — raw body:`, errorText);
     let errorMessage = "Failed to generate speech from Murf AI";
     try {
       const errorJson = JSON.parse(errorText);

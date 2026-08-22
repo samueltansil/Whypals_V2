@@ -97,15 +97,15 @@ export default function BigWhyPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {questions?.map((q) => (
-              <Card 
-                key={q.id} 
-                className="overflow-hidden border border-border/50 bg-card hover:shadow-lg transition-all duration-300 group rounded-2xl cursor-pointer"
+              <Card
+                key={q.id}
+                className="overflow-hidden border border-border/50 bg-card hover:shadow-lg transition-all duration-300 group rounded-2xl cursor-pointer flex flex-col h-full"
                 onClick={() => setSelectedQuestion(q)}
               >
                 <CardHeader className="bg-muted/30 pb-4 border-b border-border/50">
                   <div className="text-xs font-bold text-primary uppercase tracking-widest mb-3">
-                    <Link 
-                      href={`/story/${q.storyId}`} 
+                    <Link
+                      href={`/story/${q.storyId}`}
                       className="hover:underline hover:text-primary/80 transition-colors"
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -117,13 +117,13 @@ export default function BigWhyPage() {
                     {q.question}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="pt-6">
+                <CardContent className="pt-6 flex flex-col flex-grow">
                   <div className="prose prose-slate prose-lg">
                     <p className="text-muted-foreground leading-relaxed">
                       {q.answer}
                     </p>
                   </div>
-                  <div className="mt-8 pt-4 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                  <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
                       <div className="w-1.5 h-1.5 rounded-full bg-primary/50" />
                       Asked by a curious pal

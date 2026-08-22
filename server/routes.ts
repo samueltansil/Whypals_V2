@@ -32,7 +32,8 @@ const BCRYPT_ROUNDS = 12;
 const PRIVACY_POLICY_VERSION = "2026-01-04";
 
 const MURF_API_KEY = process.env.MURF_API_KEY;
-const MURF_VOICE_ID = process.env.MURF_VOICE_ID || "en-US-natalie";
+const MURF_VOICE_ID = process.env.MURF_VOICE_ID || "Ken";
+const MURF_STYLE = process.env.MURF_STYLE || "Wizard";
 
 // --- Shared audio pre-generation (used by the manual admin button AND
 // automatic background generation on publish) ---
@@ -73,9 +74,10 @@ async function generateAndCacheAudio(text: string): Promise<{ audioUrl: string; 
     body: JSON.stringify({
       text,
       voiceId: MURF_VOICE_ID,
+      style: MURF_STYLE,
       format: 'MP3',
       encodeAsBase64: true,
-      rate: -25, // Very slow speed for kids
+      rate: 25,
     }),
   });
 

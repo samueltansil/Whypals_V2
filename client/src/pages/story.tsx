@@ -697,6 +697,18 @@ export default function StoryPage() {
                   </Button>
                 </div>
               </form>
+
+              <div className="mt-8 pt-6 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+                <p className="text-muted-foreground font-medium">
+                  Want to know more about this topic? Head to the Big Why page for answers to commonly asked questions.
+                </p>
+                <Link href={`/big-why?search=${encodeURIComponent(article.title)}`}>
+                  <Button type="button" variant="outline" size="lg" className="rounded-full gap-2 px-6 whitespace-nowrap">
+                    <HelpCircle className="w-5 h-5" />
+                    Explore Big Why
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>

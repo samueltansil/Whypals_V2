@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { useState } from "react";
-import { HelpCircle, Loader2, ArrowLeft } from "lucide-react";
+import { Link, useSearch } from "wouter";
+import { useState, useMemo, useEffect } from "react";
+import { HelpCircle, Loader2, ArrowLeft, Search, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -27,6 +28,32 @@ export default function BigWhyPage() {
   const getStoryTitle = (storyId: number) => {
     return stories?.find(s => s.id === storyId)?.title || "Unknown Story";
   };
+
+  // Reads ?search=... from the URL (used by the "Explore Big Why" button on
+  // story pages, which links here pre-filled with that story's title) and
+  // seeds the search box with it. Editing the box afterward doesn't touch
+  // the URL — it's just a starting point, not a synced filter state.
+  const search = useSearch();
+  const [searchQuery, setSearchQuery] = useState(() => new URLSearchParams(search).get("search") || "");
+
+  useEffect(() => {
+    const fromUrl = new URLSearchParams(search).get("search");
+    if (fromUrl) setSearchQuery(fromUrl);
+  }, [search]);
+
+  const filteredQuestions = useMemo(() => {
+    if (!questions) return questions;
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return questions;
+    return questions.filter((item) => {
+      const storyTitle = getStoryTitle(item.storyId).toLowerCase();
+      return (
+        item.question.toLowerCase().includes(q) ||
+        (item.answer || "").toLowerCase().includes(q) ||
+        storyTitle.includes(q)
+      );
+    });
+  }, [questions, stories, searchQuery]);
 
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col">
@@ -82,6 +109,27 @@ export default function BigWhyPage() {
           <p className="text-xl text-muted-foreground max-w-2xl leading-relaxed">
             Curious minds ask the best questions. Explore the database of answers to the most interesting "Whys" from our community.
           </p>
+
+          <div className="relative w-full max-w-xl mt-10">
+            <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search by topic, question, or story title..."
+              className="h-14 pl-14 pr-12 rounded-full text-lg shadow-sm"
+              data-testid="input-big-why-search"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
+          </div>
         </div>
 
         {isLoading ? (
@@ -94,9 +142,15 @@ export default function BigWhyPage() {
             <h3 className="text-2xl font-bold text-muted-foreground">No questions answered yet</h3>
             <p className="text-muted-foreground mt-2 text-lg">Be the first to ask a Big Why on any story page!</p>
           </div>
+        ) : filteredQuestions?.length === 0 ? (
+          <div className="text-center py-20 bg-muted/30 rounded-3xl border border-border/50">
+            <Search className="w-20 h-20 text-muted-foreground/50 mx-auto mb-6" />
+            <h3 className="text-2xl font-bold text-muted-foreground">No matches for "{searchQuery}"</h3>
+            <p className="text-muted-foreground mt-2 text-lg">Try a different word, or clear the search to see every Big Why.</p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {questions?.map((q) => (
+            {filteredQuestions?.map((q) => (
               <Card
                 key={q.id}
                 className="overflow-hidden border border-border/50 bg-card hover:shadow-lg transition-all duration-300 group rounded-2xl cursor-pointer flex flex-col h-full"

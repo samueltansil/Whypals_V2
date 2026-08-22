@@ -58,6 +58,26 @@ const GAME_TYPE_COLORS: Record<string, string> = {
   emojidecoder: "bg-amber-100 text-amber-600",
 };
 
+// Full-page background shown behind the actual gameplay (replaces the plain
+// white/off-white page background) — same hue family as GAME_TYPE_COLORS
+// above so a game type's badge color and its "wallpaper" always match. Kept
+// soft/light so white game cards and answer buttons still read clearly on
+// top of it.
+const GAME_TYPE_BACKGROUNDS: Record<string, string> = {
+  puzzle: "bg-gradient-to-br from-purple-100 via-purple-50 to-white dark:from-purple-950/40 dark:via-slate-900 dark:to-slate-900",
+  whack: "bg-gradient-to-br from-red-100 via-orange-50 to-white dark:from-red-950/40 dark:via-slate-900 dark:to-slate-900",
+  match: "bg-gradient-to-br from-emerald-100 via-emerald-50 to-white dark:from-emerald-950/40 dark:via-slate-900 dark:to-slate-900",
+  quiz: "bg-gradient-to-br from-blue-100 via-blue-50 to-white dark:from-blue-950/40 dark:via-slate-900 dark:to-slate-900",
+  timeline: "bg-gradient-to-br from-orange-100 via-amber-50 to-white dark:from-orange-950/40 dark:via-slate-900 dark:to-slate-900",
+  poll: "bg-gradient-to-br from-indigo-100 via-indigo-50 to-white dark:from-indigo-950/40 dark:via-slate-900 dark:to-slate-900",
+  fillblank: "bg-gradient-to-br from-cyan-100 via-cyan-50 to-white dark:from-cyan-950/40 dark:via-slate-900 dark:to-slate-900",
+  truefalse: "bg-gradient-to-br from-yellow-100 via-yellow-50 to-white dark:from-yellow-950/40 dark:via-slate-900 dark:to-slate-900",
+  scramble: "bg-gradient-to-br from-pink-100 via-pink-50 to-white dark:from-pink-950/40 dark:via-slate-900 dark:to-slate-900",
+  guessnumber: "bg-gradient-to-br from-lime-100 via-lime-50 to-white dark:from-lime-950/40 dark:via-slate-900 dark:to-slate-900",
+  oddoneout: "bg-gradient-to-br from-rose-100 via-rose-50 to-white dark:from-rose-950/40 dark:via-slate-900 dark:to-slate-900",
+  emojidecoder: "bg-gradient-to-br from-amber-100 via-amber-50 to-white dark:from-amber-950/40 dark:via-slate-900 dark:to-slate-900",
+};
+
 export default function GamePreview() {
   const params = useParams<{ id: string }>();
   const gameId = parseInt(params.id || "0");
@@ -174,10 +194,11 @@ export default function GamePreview() {
 
   const GameIcon = GAME_TYPE_ICONS[game.gameType] || Gamepad2;
   const colorClass = GAME_TYPE_COLORS[game.gameType] || "bg-gray-100 text-gray-600";
+  const backgroundClass = GAME_TYPE_BACKGROUNDS[game.gameType] || "bg-background";
 
   if (gameStarted) {
     return (
-      <div className="min-h-screen bg-background font-sans flex flex-col">
+      <div className={`min-h-screen font-sans flex flex-col ${backgroundClass}`}>
         <nav className="p-4 border-b border-border/50 bg-white/80 backdrop-blur-md sticky top-0 z-50">
           <div className="container mx-auto flex items-center justify-between">
             <div className="flex items-center gap-4">

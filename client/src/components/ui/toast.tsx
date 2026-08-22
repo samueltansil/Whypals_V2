@@ -5,9 +5,6 @@ import { X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-console.log('[SSR] ToastPrimitives keys:', Object.keys(ToastPrimitives));
-console.log('[SSR] ToastPrimitives.Provider:', ToastPrimitives.Provider);
-
 const ToastProvider = ToastPrimitives.Provider
 
 const ToastViewport = React.forwardRef<

@@ -5,9 +5,6 @@ import * as TooltipPrimitive from "@radix-ui/react-tooltip"
 
 import { cn } from "@/lib/utils"
 
-console.log('[SSR] TooltipPrimitive keys:', Object.keys(TooltipPrimitive));
-console.log('[SSR] TooltipPrimitive.Provider:', TooltipPrimitive.Provider);
-
 const TooltipProvider = TooltipPrimitive.Provider
 
 const Tooltip = TooltipPrimitive.Root

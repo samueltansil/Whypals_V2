@@ -32,8 +32,13 @@ const BCRYPT_ROUNDS = 12;
 const PRIVACY_POLICY_VERSION = "2026-01-04";
 
 const MURF_API_KEY = process.env.MURF_API_KEY;
-const MURF_VOICE_ID = process.env.MURF_VOICE_ID || "Ken";
-const MURF_STYLE = process.env.MURF_STYLE || "Wizard";
+// Voice/style/rate default to these if nothing's been saved yet in
+// /admin's "Voice Settings" dialog (see storage.getAutomationSettings —
+// murfVoiceId/murfStyle/murfRate). Env vars, if set, only matter as the
+// very first-run fallback before that dialog has ever been used.
+const MURF_VOICE_ID_FALLBACK = process.env.MURF_VOICE_ID || "Ken";
+const MURF_STYLE_FALLBACK = process.env.MURF_STYLE || "Wizard";
+const MURF_RATE_FALLBACK = process.env.MURF_RATE ? parseInt(process.env.MURF_RATE, 10) : 25;
 
 // --- Shared audio pre-generation (used by the manual admin button AND
 // automatic background generation on publish) ---
@@ -65,6 +70,18 @@ async function generateAndCacheAudio(text: string): Promise<{ audioUrl: string; 
   const audioKey = `tts/${hash}.mp3`;
   const jsonKey = `tts/${hash}.json`;
 
+  let voiceId: string = MURF_VOICE_ID_FALLBACK;
+  let style: string = MURF_STYLE_FALLBACK;
+  let rate: number = MURF_RATE_FALLBACK;
+  try {
+    const settings = await storage.getAutomationSettings();
+    voiceId = settings.murfVoiceId || voiceId;
+    style = settings.murfStyle || style;
+    rate = typeof settings.murfRate === "number" ? settings.murfRate : rate;
+  } catch (err) {
+    console.error("[murf] Could not load saved voice settings, using fallback defaults:", err);
+  }
+
   const timestampsResponse = await fetch(`https://api.murf.ai/v1/speech/generate`, {
     method: 'POST',
     headers: {
@@ -73,11 +90,11 @@ async function generateAndCacheAudio(text: string): Promise<{ audioUrl: string; 
     },
     body: JSON.stringify({
       text,
-      voiceId: MURF_VOICE_ID,
-      style: MURF_STYLE,
+      voiceId,
+      style,
       format: 'MP3',
       encodeAsBase64: true,
-      rate: 25,
+      rate,
     }),
   });
 
@@ -1584,6 +1601,52 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error updating free-access setting:", error);
       res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
+  // Murf voice settings: admin-only read + write. Edited from the "Voice
+  // Settings" dialog next to Generate Audio in /admin — lets the story
+  // narrator's voice/style/speed be changed by typing Murf's own voice code
+  // (e.g. "Ken"), style (e.g. "Wizard"), and rate (-50 to 50), with no code
+  // deploy needed. Takes effect on the next "Generate Audio" call.
+  app.get('/api/admin/settings/murf-voice', async (req: any, res) => {
+    try {
+      if (!await isValidAdminSession(req)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const settings = await storage.getAutomationSettings();
+      res.json({ voiceId: settings.murfVoiceId, style: settings.murfStyle, rate: settings.murfRate });
+    } catch (error) {
+      console.error("Error fetching Murf voice settings:", error);
+      res.status(500).json({ message: "Failed to fetch voice settings" });
+    }
+  });
+
+  app.post('/api/admin/settings/murf-voice', async (req: any, res) => {
+    try {
+      if (!await isValidAdminSession(req)) {
+        return res.status(403).json({ message: "Admin access required" });
+      }
+      const voiceId = typeof req.body?.voiceId === "string" ? req.body.voiceId.trim() : "";
+      const style = typeof req.body?.style === "string" ? req.body.style.trim() : "";
+      const rateRaw = req.body?.rate;
+      const rate = typeof rateRaw === "number" ? rateRaw : parseInt(rateRaw, 10);
+
+      if (!voiceId) {
+        return res.status(400).json({ message: "Voice ID is required" });
+      }
+      if (!style) {
+        return res.status(400).json({ message: "Style is required" });
+      }
+      if (!Number.isFinite(rate) || rate < -50 || rate > 50) {
+        return res.status(400).json({ message: "Rate must be a number between -50 and 50" });
+      }
+
+      const settings = await storage.setMurfVoiceSettings(voiceId, style, rate);
+      res.json({ voiceId: settings.murfVoiceId, style: settings.murfStyle, rate: settings.murfRate });
+    } catch (error) {
+      console.error("Error updating Murf voice settings:", error);
+      res.status(500).json({ message: "Failed to update voice settings" });
     }
   });
 

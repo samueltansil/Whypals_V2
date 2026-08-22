@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
 import { AutoPublishToggle } from "@/components/AutoPublishToggle";
+import { MurfVoiceSettings } from "@/components/MurfVoiceSettings";
 import logo from "@assets/whypals-logo.png";
 import { CATEGORIES as ALL_CATEGORIES } from "@/lib/data";
 import type { Story, InsertStory } from "@shared/schema";
@@ -111,16 +112,19 @@ function AudioGenerator({ content }: { content: string }) {
           <Volume2 className="w-5 h-5 text-purple-600" />
           <h3 className="font-heading font-semibold text-slate-900">Audio Generation</h3>
         </div>
-        {!isGenerating && !progress && (
-          <Button 
-            type="button" 
-            variant="secondary" 
-            onClick={handleGenerate}
-            className="bg-purple-100 text-purple-700 hover:bg-purple-200"
-          >
-            Generate Audio (Manual Cost)
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <MurfVoiceSettings />
+          {!isGenerating && !progress && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleGenerate}
+              className="bg-purple-100 text-purple-700 hover:bg-purple-200"
+            >
+              Generate Audio (Manual Cost)
+            </Button>
+          )}
+        </div>
       </div>
       
       <p className="text-sm text-slate-500 mb-4">

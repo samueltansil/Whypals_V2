@@ -134,6 +134,7 @@ export interface IStorage {
   getAutomationSettings(): Promise<AutomationSettings>;
   setAutoPublishEnabled(enabled: boolean): Promise<AutomationSettings>;
   setFreeAccessEnabled(enabled: boolean): Promise<AutomationSettings>;
+  setMurfVoiceSettings(voiceId: string, style: string, rate: number): Promise<AutomationSettings>;
   autoFeatureGame(id: number): Promise<StoryGame>;
   featureStoryAndUnfeatureOthers(id: number): Promise<Story>;
 
@@ -496,6 +497,16 @@ export class DatabaseStorage implements IStorage {
     const [updated] = await db
       .update(automationSettings)
       .set({ freeAccessEnabled: enabled, updatedAt: new Date() })
+      .where(eq(automationSettings.id, 1))
+      .returning();
+    return updated;
+  }
+
+  async setMurfVoiceSettings(voiceId: string, style: string, rate: number): Promise<AutomationSettings> {
+    await this.getAutomationSettings(); // make sure the row exists first
+    const [updated] = await db
+      .update(automationSettings)
+      .set({ murfVoiceId: voiceId, murfStyle: style, murfRate: rate, updatedAt: new Date() })
       .where(eq(automationSettings.id, 1))
       .returning();
     return updated;

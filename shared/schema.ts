@@ -445,6 +445,14 @@ export const automationSettings = pgTable("automation_settings", {
   // instead of the real forms, the profile icon no longer links to login,
   // and games no longer require being logged in to play.
   freeAccessEnabled: boolean("free_access_enabled").default(false).notNull(),
+  // Murf AI text-to-speech voice settings, editable from the "Voice Settings"
+  // button next to Generate Audio in /admin. Lets a non-developer swap the
+  // story narrator's voice/style/speed without a code deploy — just type the
+  // voice code Murf's docs list (e.g. "Ken"), a style (e.g. "Wizard"), and a
+  // rate from -50 (slower) to 50 (faster).
+  murfVoiceId: text("murf_voice_id").default("Ken").notNull(),
+  murfStyle: text("murf_style").default("Wizard").notNull(),
+  murfRate: integer("murf_rate").default(25).notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 

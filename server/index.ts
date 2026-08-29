@@ -10,6 +10,21 @@ import { storage } from "./storage";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
+
+// www.whypals.com currently serves the exact same site as whypals.com with
+// no redirect, which lets Google crawl and index both hostnames as separate
+// pages — each with its own crawl schedule/cache, which is very likely why
+// a fix (favicon, meta description) can show as live on one but stale on
+// the other for a long time after deploying. Canonicalize on the bare
+// domain so there's only ever one URL for Google (and browsers) to index.
+app.use((req, res, next) => {
+  const host = req.headers.host || "";
+  if (host === "www.whypals.com" || host === "www.whypals.com:443") {
+    return res.redirect(301, `https://whypals.com${req.originalUrl}`);
+  }
+  next();
+});
+
 app.use(cookieParser());
 const httpServer = createServer(app);
 

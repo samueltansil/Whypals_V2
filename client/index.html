@@ -14,8 +14,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
 
   <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
   <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+  <!-- Google's own favicon guidelines require at least a 48x48 rel="icon" to
+       show the icon in search results — the 16x16/32x32 ones above are only
+       for the browser tab. This reuses the existing 180x180 image (already
+       shipped as apple-touch-icon.png) as a same-file rel="icon" candidate
+       large enough for Search, no new image asset needed. -->
+  <link rel="icon" type="image/png" sizes="180x180" href="/apple-touch-icon.png" />
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com">

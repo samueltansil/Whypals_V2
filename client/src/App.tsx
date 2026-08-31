@@ -136,7 +136,7 @@ function App() {
     <TooltipProvider>
       <CanonicalTag />
       <Helmet>
-        <title>WhyPals - News for Kids</title>
+        <title>WhyPals - Audio News for Kids</title>
       </Helmet>
       <Toaster />
       <Router />

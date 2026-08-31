@@ -427,45 +427,45 @@ export default function StoryPage() {
             )}
           </div>
 
-          <div className="mb-8 p-4 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 rounded-2xl border border-primary/20 shadow-sm">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                <Volume2 className="w-5 h-5 text-primary" />
+          <div className="mb-8 p-6 bg-gradient-to-r from-primary/10 via-secondary/10 to-primary/10 rounded-2xl border-2 border-primary/30 shadow-md">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-14 h-14 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                <Volume2 className="w-7 h-7 text-primary" />
               </div>
               <div>
-                <span className="font-heading font-bold text-foreground block">Read Aloud</span>
-                <span className="text-xs text-muted-foreground">Powered by AI voice</span>
+                <span className="font-heading font-bold text-foreground block text-lg">Listen to This Story</span>
+                <span className="text-xs text-muted-foreground">Narrated out loud — or read the transcript below</span>
               </div>
               <div className="flex-grow" />
               <div className="flex gap-2">
                 <Button
                   onClick={handlePlayPause}
-                  size="sm"
+                  size="lg"
                   disabled={isTTSLoading}
                   className={cn(
-                    "rounded-full gap-2 min-w-[120px]",
+                    "rounded-full gap-2 min-w-[140px] text-base shadow-md shadow-primary/20",
                     isPlaying && !isPaused && "bg-secondary hover:bg-secondary/90"
                   )}
                   data-testid="button-read-aloud"
                 >
                   {isTTSLoading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Loader2 className="w-5 h-5 animate-spin" />
                       Preparing {loadingProgress}%
                     </>
                   ) : !isPlaying ? (
                     <>
-                      <Play className="w-4 h-4 fill-current" />
+                      <Play className="w-5 h-5 fill-current" />
                       Play
                     </>
                   ) : isPaused ? (
                     <>
-                      <Play className="w-4 h-4 fill-current" />
+                      <Play className="w-5 h-5 fill-current" />
                       Resume
                     </>
                   ) : (
                     <>
-                      <Pause className="w-4 h-4" />
+                      <Pause className="w-5 h-5" />
                       Pause
                     </>
                   )}
@@ -473,7 +473,7 @@ export default function StoryPage() {
                 {(isPlaying || isTTSLoading) && (
                   <Button
                     onClick={handleStop}
-                    size="sm"
+                    size="lg"
                     variant="outline"
                     className="rounded-full gap-2"
                     data-testid="button-stop-reading"
@@ -508,6 +508,10 @@ export default function StoryPage() {
             {error && (
               <p className="text-sm text-red-500 mt-2">{error}</p>
             )}
+          </div>
+
+          <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground/70 mb-3">
+            Transcript
           </div>
 
           <div className="prose prose-lg max-w-none" data-testid="story-content">

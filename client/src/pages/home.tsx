@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Menu, ChevronLeft, ChevronRight, X, Home as HomeIcon, Gamepad2, GraduationCap, Settings, Star, HelpCircle } from "lucide-react";
+import { Search, Menu, ChevronLeft, ChevronRight, X, Home as HomeIcon, Gamepad2, GraduationCap, Settings, Star, HelpCircle, Volume2 } from "lucide-react";
 import logo from "@assets/whypals-logo.png";
 import { CATEGORIES } from "@/lib/data";
 import { NewsCard } from "@/components/news-card";
@@ -91,10 +91,10 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-accent selection:text-accent-foreground flex flex-col">
       <Helmet>
-        <title>WhyPals - News for Kids</title>
-        <meta name="description" content="An educational platform that helps children understand what’s happening in the world through age-appropriate news they can read, listen to, and play with through interactive games." />
-        <meta property="og:title" content="WhyPals - News for Kids" />
-        <meta property="og:description" content="An educational platform that helps children understand what’s happening in the world through age-appropriate news they can read, listen to, and play with through interactive games." />
+        <title>WhyPals - Audio News for Kids</title>
+        <meta name="description" content="Kids' news you can listen to. WhyPals narrates age-appropriate stories about what's happening in the world, with a library kids can play like a podcast — plus games to go with every story." />
+        <meta property="og:title" content="WhyPals - Audio News for Kids" />
+        <meta property="og:description" content="Kids' news you can listen to. WhyPals narrates age-appropriate stories about what's happening in the world, with a library kids can play like a podcast — plus games to go with every story." />
         <meta property="og:type" content="website" />
       </Helmet>
       {/* Navbar */}
@@ -256,8 +256,9 @@ export default function Home() {
                           <p className="hidden md:block text-sm md:text-base text-muted-foreground mb-4 leading-relaxed max-w-md line-clamp-2">
                             {currentFeaturedItem.data.excerpt}
                           </p>
-                          <Button size="sm" className="mt-2 md:mt-auto w-fit rounded-full text-sm px-6 h-9 shadow-md shadow-primary/20" data-testid="button-hero-read">
-                            Read the Full Story
+                          <Button size="sm" className="mt-2 md:mt-auto w-fit rounded-full text-sm px-6 h-9 shadow-md shadow-primary/20 gap-2" data-testid="button-hero-read">
+                            <Volume2 className="w-4 h-4" />
+                            Listen or Read
                           </Button>
                         </div>
                       </div>

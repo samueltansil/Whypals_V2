@@ -27,7 +27,7 @@ export default function Home() {
   const [location, navigate] = useLocation();
 
   const navLinks = [
-    { href: "/", label: "Home", icon: HomeIcon },
+    { href: "/", label: "Listen", icon: Volume2 },
     { href: "/games", label: "Games", icon: Gamepad2 },
     { href: "/big-why", label: "Big Why?", icon: HelpCircle },
   ];
@@ -106,7 +106,7 @@ export default function Home() {
           </div>
 
           <div className="hidden md:flex items-center gap-8 font-heading font-semibold text-muted-foreground">
-            <Link href="/" className="text-primary hover:text-primary transition-colors">Home</Link>
+            <Link href="/" className="text-primary hover:text-primary transition-colors">Listen</Link>
             <Link href="/games" className="hover:text-primary transition-colors">Games</Link>
             <Link href="/big-why" className="hover:text-primary transition-colors">Big Why?</Link>
           </div>

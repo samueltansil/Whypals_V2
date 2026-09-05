@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
-import { Play, Clock, Search, Menu, FlaskConical, Leaf, Sparkles, Cloud, Pencil, X, Home, Gamepad2, GraduationCap, Settings, Star, HelpCircle } from "lucide-react";
+import { Play, Clock, Search, Menu, FlaskConical, Leaf, Sparkles, Cloud, Pencil, X, Home, Gamepad2, GraduationCap, Settings, Star, HelpCircle, Volume2 } from "lucide-react";
 import { FeaturedVideoSlideshow } from "@/components/featured-video-slideshow";
 import logo from "@assets/whypals-logo.png";
 import watchPlaceholder from "@/assets/watch-placeholder.png";
@@ -271,7 +271,7 @@ export default function Videos() {
   const { toast } = useToast();
 
   const navLinks = [
-    { href: "/", label: "Home", icon: Home },
+    { href: "/", label: "Listen", icon: Volume2 },
     { href: "/videos", label: "Videos", icon: Play },
     { href: "/games", label: "Games", icon: Gamepad2 },
     { href: "/big-why", label: "Big Why?", icon: HelpCircle },
@@ -318,9 +318,10 @@ export default function Videos() {
           </Link>
           
           <div className="hidden md:flex items-center gap-8 font-heading font-semibold text-muted-foreground">
-             <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+             <Link href="/" className="hover:text-primary transition-colors">Listen</Link>
              <Link href="/videos" className="text-primary transition-colors">Videos</Link>
              <Link href="/games" className="hover:text-primary transition-colors">Games</Link>
+             <Link href="/big-why" className="hover:text-primary transition-colors">Big Why?</Link>
           </div>
 
           <div className="flex items-center gap-4">

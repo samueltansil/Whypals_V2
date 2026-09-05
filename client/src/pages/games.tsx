@@ -1,6 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
-import { Search, Trophy, Menu, X, Home, Play, Gamepad2, GraduationCap, Settings, Puzzle, Sparkles, Target, HelpCircle, Calendar, ChevronLeft, ChevronRight, BarChart2, PenLine, Zap, ImageIcon, Hash, Eye, Smile } from "lucide-react";
+import { Search, Trophy, Menu, X, Home, Play, Gamepad2, GraduationCap, Settings, Puzzle, Sparkles, Target, HelpCircle, Calendar, ChevronLeft, ChevronRight, BarChart2, PenLine, Zap, ImageIcon, Hash, Eye, Smile, Volume2 } from "lucide-react";
 import { CATEGORIES } from "@/lib/data";
 import gamesHero from "@assets/generated_images/kids_games_hero_illustration.png";
 import logo from "@assets/whypals-logo.png";
@@ -105,7 +105,7 @@ export default function Games() {
   }, [allFeaturedItems.length]);
 
   const navLinks = [
-    { href: "/", label: "Home", icon: Home },
+    { href: "/", label: "Listen", icon: Volume2 },
     { href: "/games", label: "Games", icon: Gamepad2 },
     { href: "/big-why", label: "Big Why?", icon: HelpCircle },
   ];
@@ -141,7 +141,7 @@ export default function Games() {
           </Link>
           
           <div className="hidden md:flex items-center gap-8 font-heading font-semibold text-muted-foreground">
-             <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+             <Link href="/" className="hover:text-primary transition-colors">Listen</Link>
              <Link href="/games" className="text-primary transition-colors">Games</Link>
              <Link href="/big-why" className="hover:text-primary transition-colors">Big Why?</Link>
           </div>

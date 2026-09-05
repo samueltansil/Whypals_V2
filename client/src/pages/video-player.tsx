@@ -113,13 +113,14 @@ export default function VideoPlayer() {
         <div className="container mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 font-heading text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
             <img src={logo} alt="WhyPals Logo" className="h-10 w-10 object-contain" />
-            WhyPals
+            <span className="hidden sm:inline">WhyPals</span>
           </Link>
           
-          <div className="hidden md:flex items-center gap-8 font-heading font-semibold text-muted-foreground">
-            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+          <div className="flex items-center gap-3 md:gap-8 font-heading font-semibold text-muted-foreground text-sm md:text-base whitespace-nowrap">
+            <Link href="/" className="hover:text-primary transition-colors">Listen</Link>
             <Link href="/videos" className="text-primary transition-colors">Videos</Link>
             <Link href="/games" className="hover:text-primary transition-colors">Games</Link>
+            <Link href="/big-why" className="hover:text-primary transition-colors">Big Why?</Link>
           </div>
         </div>
       </nav>

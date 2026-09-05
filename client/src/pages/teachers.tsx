@@ -1,6 +1,6 @@
 import { motion } from "framer-motion";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, Users, Trophy, DollarSign, BookOpen, Search, Menu, X, Home, Play, Gamepad2, Settings, TrendingUp, Star, ArrowRight, FileText, Video, HelpCircle, Package } from "lucide-react";
+import { ShoppingBag, Users, Trophy, DollarSign, BookOpen, Search, Menu, X, Home, Play, Gamepad2, Settings, TrendingUp, Star, ArrowRight, FileText, Video, HelpCircle, Package, Volume2 } from "lucide-react";
 import logo from "@assets/whypals-logo.png";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
@@ -28,7 +28,7 @@ export default function Teachers() {
   });
 
   const navLinks = [
-    { href: "/", label: "Home", icon: Home },
+    { href: "/", label: "Listen", icon: Volume2 },
     { href: "/videos", label: "Videos", icon: Play },
     { href: "/games", label: "Games", icon: Gamepad2 },
     { href: "/big-why", label: "Big Why?", icon: HelpCircle },
@@ -62,9 +62,10 @@ export default function Teachers() {
           </Link>
           
           <div className="hidden md:flex items-center gap-8 font-heading font-semibold text-muted-foreground">
-            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+            <Link href="/" className="hover:text-primary transition-colors">Listen</Link>
             <Link href="/videos" className="hover:text-primary transition-colors">Videos</Link>
             <Link href="/games" className="hover:text-primary transition-colors">Games</Link>
+            <Link href="/big-why" className="hover:text-primary transition-colors">Big Why?</Link>
             <Link href="/teachers" className="text-primary transition-colors">Marketplace</Link>
           </div>
 

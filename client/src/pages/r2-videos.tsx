@@ -87,10 +87,11 @@ export default function R2Videos() {
           </Link>
           
           <div className="hidden md:flex items-center gap-8 font-heading font-semibold text-muted-foreground">
-            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
+            <Link href="/" className="hover:text-primary transition-colors">Listen</Link>
             <Link href="/videos" className="hover:text-primary transition-colors">Videos</Link>
             <Link href="/r2-videos" className="text-primary transition-colors">My Videos</Link>
             <Link href="/games" className="hover:text-primary transition-colors">Games</Link>
+            <Link href="/big-why" className="hover:text-primary transition-colors">Big Why?</Link>
           </div>
         </div>
       </nav>

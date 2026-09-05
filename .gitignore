@@ -19,6 +19,15 @@ server/dist
 .env.test.local
 .env.production.local
 
+# Automation secrets — holds ANTHROPIC_API_KEY and WHYPALS_ADMIN_PASSWORD.
+# Never commit this; scripts/.env.automation.example is the template to share.
+.env.automation
+
+# Automation runtime state (regenerated on each run, not source)
+scripts/recent-topics.json
+scripts/.last-theme-banner.json
+scripts/.big-why-auto-state.json
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

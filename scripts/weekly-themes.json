@@ -3,6 +3,22 @@
   "themes": [
     { "date": "2026-08-21", "theme": "Ocean & Sea Week" },
     { "date": "2026-08-28", "theme": "How Things Work Week" },
-    { "date": "2026-09-04", "theme": "Space Explorers Week" }
+    { "date": "2026-09-04", "theme": "Space Explorers Week" },
+    { "date": "2026-09-11", "theme": "Weather & Wild Skies Week" },
+    { "date": "2026-09-18", "theme": "Animal Superpowers Week" },
+    { "date": "2026-09-25", "theme": "Robots & Smart Machines Week" },
+    { "date": "2026-10-02", "theme": "Inside the Human Body Week" },
+    { "date": "2026-10-09", "theme": "Food Science Week" },
+    { "date": "2026-10-16", "theme": "Rainforests & Jungles Week" },
+    { "date": "2026-10-23", "theme": "Inventors & Big Ideas Week" },
+    { "date": "2026-10-30", "theme": "Creepy Crawlies Week" },
+    { "date": "2026-11-06", "theme": "Cities & How They Work Week" },
+    { "date": "2026-11-13", "theme": "Money & Trade Week" },
+    { "date": "2026-11-20", "theme": "Dinosaurs & Fossils Week" },
+    { "date": "2026-11-27", "theme": "Sports Science Week" },
+    { "date": "2026-12-04", "theme": "Ice & Polar Worlds Week" },
+    { "date": "2026-12-11", "theme": "Music & Sound Week" },
+    { "date": "2026-12-18", "theme": "Light & Colour Week" },
+    { "date": "2026-12-25", "theme": "Celebrations Around the World Week" }
   ]
 }

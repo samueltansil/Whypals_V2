@@ -1,7 +1,6 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Link, useLocation } from "wouter";
 import { Search, Trophy, Menu, X, Home, Play, Gamepad2, GraduationCap, Settings, Puzzle, Sparkles, Target, HelpCircle, Calendar, ChevronLeft, ChevronRight, BarChart2, PenLine, Zap, ImageIcon, Hash, Eye, Smile, Volume2 } from "lucide-react";
-import { CATEGORIES } from "@/lib/data";
 import gamesHero from "@assets/generated_images/kids_games_hero_illustration.png";
 import logo from "@assets/whypals-logo.png";
 import { Button } from "@/components/ui/button";
@@ -45,6 +44,42 @@ const GAME_TYPE_COLORS: Record<string, string> = {
   guessnumber: "bg-lime-100 text-lime-600",
   oddoneout: "bg-rose-100 text-rose-600",
   emojidecoder: "bg-amber-100 text-amber-600",
+};
+
+// Plain-English names for each game type, shown on the card and in the
+// filter row. Kids pick games by "what kind of game is it", not by topic.
+const GAME_TYPE_LABELS: Record<string, string> = {
+  puzzle: "Puzzle",
+  whack: "Whack",
+  match: "Match",
+  quiz: "Quiz",
+  timeline: "Sequence",
+  poll: "Poll",
+  fillblank: "Fill the Blank",
+  truefalse: "True or False",
+  scramble: "Picture Scramble",
+  guessnumber: "Guess the Number",
+  oddoneout: "Odd One Out",
+  emojidecoder: "Emoji Decoder",
+};
+
+// Bold gradient tiles that replace the photo thumbnail on game cards. A game
+// used to show the SAME photo as the news story it came from, which is why
+// the games page read as a second news feed — a flat colour tile with a big
+// icon can't be mistaken for an article photo.
+const GAME_TYPE_TILES: Record<string, string> = {
+  puzzle: "from-purple-400 to-purple-600",
+  whack: "from-red-400 to-orange-500",
+  match: "from-emerald-400 to-emerald-600",
+  quiz: "from-blue-400 to-blue-600",
+  timeline: "from-orange-400 to-amber-500",
+  poll: "from-indigo-400 to-indigo-600",
+  fillblank: "from-cyan-400 to-cyan-600",
+  truefalse: "from-yellow-400 to-amber-500",
+  scramble: "from-pink-400 to-pink-600",
+  guessnumber: "from-lime-400 to-lime-600",
+  oddoneout: "from-rose-400 to-rose-600",
+  emojidecoder: "from-amber-400 to-amber-600",
 };
 
 export default function Games() {
@@ -119,12 +154,19 @@ export default function Games() {
     }
   };
 
+  // Filter by KIND of game rather than by news topic. The topic chips were
+  // identical to the ones on the news page, which was half the reason the two
+  // pages looked like the same feed twice.
+  const availableGameTypes = Array.from(
+    new Set(games.filter(g => g.gameType !== 'poll').map(g => g.gameType))
+  ).sort((a, b) => (GAME_TYPE_LABELS[a] || a).localeCompare(GAME_TYPE_LABELS[b] || b));
+
   const filteredGames = games.filter(game => {
     const matchesSearch = game.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     game.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = activeCategory === "All" || (Array.isArray(game.category) && game.category.includes(activeCategory));
+    const matchesType = activeCategory === "All" || game.gameType === activeCategory;
     const isNotPoll = game.gameType !== 'poll';
-    return matchesSearch && matchesCategory && isNotPoll;
+    return matchesSearch && matchesType && isNotPoll;
   });
 
   return (
@@ -361,7 +403,7 @@ export default function Games() {
               <div className="absolute inset-0 bg-primary/10" />
               <div className="relative z-10 h-full flex flex-col items-center justify-center text-center">
                 <h1 className="font-heading text-4xl md:text-6xl font-bold text-primary mb-2 drop-shadow-sm">Games</h1>
-                <p className="text-lg md:text-xl font-bold text-primary/80">Play, Learn, and Win!</p>
+                <p className="text-lg md:text-xl font-bold text-primary/80">Play a game about a story you've heard!</p>
               </div>
             </>
           )}
@@ -383,30 +425,33 @@ export default function Games() {
             All Games
           </motion.button>
           
-          {CATEGORIES.map((cat: any) => {
-            const Icon = cat.icon;
-            const isActive = activeCategory === cat.id;
+          {availableGameTypes.map((type) => {
+            const Icon = GAME_TYPE_ICONS[type] || Gamepad2;
+            const isActive = activeCategory === type;
             return (
               <motion.button
-                key={cat.id}
+                key={type}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                onClick={() => setActiveCategory(cat.id)}
+                onClick={() => setActiveCategory(type)}
                 className={`flex items-center gap-2 px-6 py-3 rounded-2xl whitespace-nowrap font-bold shadow-sm transition-all snap-start ${
-                  isActive 
-                    ? "bg-primary text-white shadow-primary/25" 
+                  isActive
+                    ? "bg-primary text-white shadow-primary/25"
                     : "bg-white text-muted-foreground hover:bg-gray-50"
                 }`}
-                data-testid={`category-btn-${cat.id}`}
+                data-testid={`gametype-btn-${type}`}
               >
                 <Icon className={`w-5 h-5 ${isActive ? "text-white" : ""}`} />
-                {cat.label}
+                {GAME_TYPE_LABELS[type] || type}
               </motion.button>
             );
           })}
         </div>
 
-        <h2 className="font-heading text-2xl font-bold mb-6">{activeCategory === "All" ? "All Games" : `${activeCategory} Games`}</h2>
+        <h2 className="font-heading text-2xl font-bold mb-1">
+          {activeCategory === "All" ? "All Games" : `${GAME_TYPE_LABELS[activeCategory] || activeCategory} Games`}
+        </h2>
+        <p className="text-muted-foreground mb-6">Play a game about a story you've listened to.</p>
 
         {isLoading ? (
           <div className="text-center py-12">
@@ -427,7 +472,8 @@ export default function Games() {
           <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredGames.map((game) => {
               const GameIcon = GAME_TYPE_ICONS[game.gameType] || Gamepad2;
-              const colorClass = GAME_TYPE_COLORS[game.gameType] || "bg-gray-100 text-gray-600";
+              const tileClass = GAME_TYPE_TILES[game.gameType] || "from-slate-400 to-slate-600";
+              const typeLabel = GAME_TYPE_LABELS[game.gameType] || game.gameType;
               return (
                 <Link key={game.id} href={`/game/${game.id}`}>
                   <motion.div
@@ -435,25 +481,26 @@ export default function Games() {
                     className="bg-white rounded-3xl p-6 shadow-sm hover:shadow-xl border-2 border-transparent hover:border-primary/20 transition-all cursor-pointer group h-full flex flex-col"
                     data-testid={`card-game-${game.id}`}
                   >
-                    <div className="relative mb-4 shrink-0">
-                      {game.thumbnail ? (
-                        <img
-                          src={game.thumbnail}
-                          alt={game.title}
-                          className="w-full h-32 object-cover rounded-2xl"
-                        />
-                      ) : (
-                        <img
-                          src={playPlaceholder}
-                          alt="Play"
-                          className="w-full h-32 object-cover rounded-2xl"
-                        />
-                      )}
-                      <div className={`absolute -bottom-3 -right-3 w-14 h-14 rounded-xl ${colorClass} flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform`}>
-                        <GameIcon className="w-7 h-7" />
-                      </div>
+                    {/* Colour tile instead of a photo: a game card must never
+                        look like the news card for the story it came from. */}
+                    <div
+                      className={`relative mb-4 shrink-0 h-32 rounded-2xl overflow-hidden bg-gradient-to-br ${tileClass} flex items-center justify-center`}
+                    >
+                      <GameIcon
+                        className="w-16 h-16 text-white drop-shadow-md group-hover:scale-110 transition-transform"
+                        strokeWidth={2.25}
+                      />
+                      <span className="absolute top-2 left-2 bg-white/95 text-gray-700 text-[10px] md:text-xs font-bold px-2 py-0.5 rounded-full uppercase tracking-wide">
+                        {typeLabel}
+                      </span>
                     </div>
-                    <h3 className="font-heading text-xl md:text-2xl font-bold mb-2 text-foreground line-clamp-2">{game.title}</h3>
+                    <h3 className="font-heading text-xl md:text-2xl font-bold mb-1 text-foreground line-clamp-2">{game.title}</h3>
+                    {game.linkedStoryTitle && (
+                      <p className="text-[11px] md:text-xs text-muted-foreground/80 mb-2 line-clamp-1 flex items-center gap-1">
+                        <Volume2 className="w-3 h-3 shrink-0" />
+                        From: {game.linkedStoryTitle}
+                      </p>
+                    )}
                     <p className="text-xs md:text-sm text-muted-foreground mb-4 line-clamp-2 flex-1">{game.description || "A fun learning game!"}</p>
                     <div className="flex items-center justify-between gap-2 mt-auto pt-2">
                       <span className="text-xs md:text-sm font-bold text-muted-foreground bg-muted px-2 md:px-3 py-1 rounded-full flex items-center gap-1 whitespace-nowrap shrink min-w-0">

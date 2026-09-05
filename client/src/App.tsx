@@ -139,7 +139,7 @@ function App() {
     <TooltipProvider>
       <CanonicalTag />
       <Helmet>
-        <title>WhyPals - Listen to News for Kids</title>
+        <title>WhyPals - Listen to News for Kids, Then Play</title>
       </Helmet>
       <Toaster />
       <Router />

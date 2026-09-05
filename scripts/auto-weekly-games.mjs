@@ -185,33 +185,126 @@ async function createGame(token, gamePayload) {
   return res.json();
 }
 
+// When each game type fits. Kept as a map (not one blob of text) so the
+// prompt can offer Claude a REDUCED menu — see chooseAllowedTypes below.
+const GAME_TYPE_GUIDE = {
+  quiz: `"quiz": the story has clear facts a reader could be asked comprehension questions about. Needs 4-5 multiple choice questions.`,
+  timeline: `"timeline": the story describes a sequence, process, or order of events (how something happens/happened step by step, or a history). Needs 4-6 events in their correct chronological/logical order.`,
+  poll: `"poll": the story has a fun, opinion-based angle with no single right answer (e.g. "which of these would you rather..."). Needs 2-3 questions, each with 3-4 options.`,
+  puzzle: `"puzzle": the story is strongly visual/atmospheric without a clean set of quizzable facts. This just reuses the story's photo as a sliding puzzle, so pick this when nothing else fits well.`,
+  fillblank: `"fillblank": the story has strong individual sentences you could blank out a key word from to test close reading. Needs 4-5 sentences pulled/adapted from the story, each with one word replaced by "___", plus multiple choice options for the missing word.`,
+  truefalse: `"truefalse": the story has several standalone claims that are genuinely SURPRISING to challenge — a kid should think "wait, really?" before answering. Nearly any story can technically be turned into true/false statements, which is exactly why this type gets overused; only pick it when the claims are fun to be tricked by, not merely when they are checkable. Needs 6-8 short true/false statements.`,
+  scramble: `"scramble": the story has ONE especially strong, concrete, visually-recognizable noun (an animal, place, or object — not an abstract concept) that would make a fun "guess the picture" word puzzle. Needs just that one word plus a short kid-friendly clue.`,
+  guessnumber: `"guessnumber": the story has ONE striking, guessable numeric fact (a count, speed, size, distance, age, etc). Needs the question, the exact numeric answer, and an optional unit.`,
+  oddoneout: `"oddoneout": the story has enough real facts that you can write 4-statement rounds where 3 are true and 1 is a plausible-sounding made-up fact. Needs 3-5 rounds, each with exactly 4 statements and which index is the fake one.`,
+  emojidecoder: `"emojidecoder": the story has concrete, visual nouns/concepts that can be represented as a short emoji sequence for the reader to guess. Needs 4-6 rounds, each an emoji clue plus 4 multiple choice options.`,
+};
+
+// Types that fit almost any story, so they win "which fits best?" by default
+// and crowd out the more interesting formats if left unchecked.
+const COMMON_TYPES = ["truefalse", "quiz"];
+
+// How many of the most recent games to look at when balancing.
+const BALANCE_WINDOW = 12;
+// A type may not exceed this share of the recent window.
+const MAX_TYPE_SHARE = 0.25;
+// A type used in any of the last N games is skipped this round.
+const COOLDOWN_GAMES = 3;
+// Never narrow the menu below this many types — a starved menu produces
+// worse games than a slightly repetitive one.
+const MIN_MENU_SIZE = 5;
+
+/**
+ * Decide which game types Claude is allowed to choose from for this story.
+ *
+ * Claude picks the single best-fitting type per story with no memory of what
+ * came before, and since practically every factual story CAN be turned into
+ * true/false statements, that type wins on fit almost every time. Rather than
+ * asking Claude to remember variety (which it has no way to know about), the
+ * script reads what already exists and hands over a menu with the
+ * over-represented types removed.
+ *
+ * Balances against real published games, so it self-corrects — no state file.
+ */
+// How many of the least-used types the "rare slot" may choose between. Small
+// enough to guarantee an unusual format, big enough that Claude still has a
+// real choice and isn't forced to jam a bad fit onto the story.
+const RARE_MENU_SIZE = 5;
+
+function chooseAllowedTypes(existingGames, chosenThisRun = [], opts = {}) {
+  // Newest first; ids are sequential so the highest id is the newest game.
+  const recent = [...existingGames]
+    .sort((a, b) => b.id - a.id)
+    .slice(0, BALANCE_WINDOW)
+    .map((g) => g.gameType);
+
+  const counts = {};
+  for (const t of recent) counts[t] = (counts[t] || 0) + 1;
+
+  const cooldown = new Set([
+    ...recent.slice(0, COOLDOWN_GAMES),
+    ...chosenThisRun, // never repeat a type inside one run either
+  ]);
+
+  const overCap = new Set(
+    Object.entries(counts)
+      .filter(([, n]) => recent.length > 0 && n / recent.length > MAX_TYPE_SHARE)
+      .map(([t]) => t)
+  );
+
+  let allowed = GAME_TYPES.filter((t) => !cooldown.has(t) && !overCap.has(t));
+
+  // If the rules starved the menu, add back the least-recently-used types
+  // (rarest first) until it is usable again.
+  if (allowed.length < MIN_MENU_SIZE) {
+    const fallbackOrder = GAME_TYPES
+      .filter((t) => !allowed.includes(t) && !chosenThisRun.includes(t))
+      .sort((a, b) => (counts[a] || 0) - (counts[b] || 0));
+    allowed = [...allowed, ...fallbackOrder].slice(0, Math.max(MIN_MENU_SIZE, allowed.length));
+  }
+
+  // The "rare slot". Removing over-used types stops any one format dominating,
+  // but it does not actively surface the awkward formats (scramble,
+  // guessnumber, emojidecoder) — those need a specific kind of story, so they
+  // lose "which fits best?" to quiz or oddoneout nearly every time and would
+  // stay invisible. Once per run, the menu is narrowed to the least-used types
+  // only, which guarantees the unusual formats keep showing up.
+  if (opts.rareOnly) {
+    const rare = GAME_TYPES.filter((t) => !chosenThisRun.includes(t) && !COMMON_TYPES.includes(t))
+      .sort((a, b) => (counts[a] || 0) - (counts[b] || 0))
+      .slice(0, RARE_MENU_SIZE);
+    if (rare.length) allowed = rare;
+  }
+
+  return { allowed, counts, recentCount: recent.length };
+}
+
 // --- Claude: pick the best game type for a story + generate its content ---
 // Pass forceType to skip Claude's own judgment and require a specific type
 // (used by --type=... for testing each type deterministically).
-async function planGameForStory(story, forceType) {
+// Pass allowedTypes to restrict which types Claude may choose between.
+async function planGameForStory(story, forceType, allowedTypes) {
   // Keep the prompt a reasonable size — the excerpt + a healthy chunk of
   // content is plenty of context without sending the whole article.
   const truncatedContent = story.content.length > 4000
     ? story.content.slice(0, 4000) + "..."
     : story.content;
 
+  const menu = forceType
+    ? [forceType]
+    : (allowedTypes && allowedTypes.length ? allowedTypes : GAME_TYPES);
+
   const typeInstruction = forceType
     ? `You MUST use gameType "${forceType}" for this one — do not pick a different type, even if another would fit better. Just do your best to make it work well for this story.`
-    : `Read it and decide which ONE of these 8 game types best fits its content, then generate the actual game content for that type.`;
+    : `Read it and decide which ONE of the ${menu.length} game types below best fits its content, then generate the actual game content for that type. These are the only types available for this story — other types exist but have been used too recently, so do not ask for them.`;
+
+  const menuText = menu.map((t) => `- ${GAME_TYPE_GUIDE[t]}`).join("\n");
+  const enumText = menu.map((t) => `"${t}"`).join(" | ");
 
   const prompt = `You help design mini-games for a kids' educational news platform called WhyPals (readers are ages 7-12). You'll be given one published story. ${typeInstruction}
 
 Game types and when each fits well:
-- "quiz": the story has clear facts a reader could be asked comprehension questions about. Needs 4-5 multiple choice questions.
-- "timeline": the story describes a sequence, process, or order of events (how something happens/happened step by step, or a history). Needs 4-6 events in their correct chronological/logical order.
-- "poll": the story has a fun, opinion-based angle with no single right answer (e.g. "which of these would you rather..."). Needs 2-3 questions, each with 3-4 options.
-- "puzzle": the story is strongly visual/atmospheric without a clean set of quizzable facts. This just reuses the story's photo as a sliding puzzle, so pick this when nothing else fits well.
-- "fillblank": the story has strong individual sentences you could blank out a key word from to test close reading. Needs 4-5 sentences pulled/adapted from the story, each with one word replaced by "___", plus multiple choice options for the missing word.
-- "truefalse": the story has several standalone, clearly true or false factual claims you could quiz rapid-fire. Needs 6-8 short true/false statements.
-- "scramble": the story has ONE especially strong, concrete, visually-recognizable noun (an animal, place, or object — not an abstract concept) that would make a fun "guess the picture" word puzzle. Needs just that one word plus a short kid-friendly clue.
-- "guessnumber": the story has ONE striking, guessable numeric fact (a count, speed, size, distance, age, etc). Needs the question, the exact numeric answer, and an optional unit.
-- "oddoneout": the story has enough real facts that you can write 4-statement rounds where 3 are true and 1 is a plausible-sounding made-up fact. Needs 3-5 rounds, each with exactly 4 statements and which index is the fake one.
-- "emojidecoder": the story has concrete, visual nouns/concepts that can be represented as a short emoji sequence for the reader to guess. Needs 4-6 rounds, each an emoji clue plus 4 multiple choice options.
+${menuText}
 
 Story title: ${story.title}
 Story category: ${story.category.join(", ")}
@@ -220,7 +313,7 @@ ${truncatedContent}
 
 Respond with ONLY valid JSON, no markdown fences, matching this exact shape (include ONLY the one config key that matches your chosen gameType — omit the other config keys entirely):
 {
-  "gameType": "quiz" | "timeline" | "poll" | "puzzle" | "fillblank" | "truefalse" | "scramble" | "guessnumber" | "oddoneout" | "emojidecoder",
+  "gameType": ${enumText},
   "title": "a short, fun game title, e.g. 'Ocean Wave Quiz'",
   "description": "one upbeat sentence describing the game, aimed at a kid",
   "funFacts": "one or two extra fun facts related to the story, kid-friendly",
@@ -462,13 +555,43 @@ async function main() {
   }
 
   const created = [];
-  for (const story of targetStories) {
-    console.log(`\n[${story.title}] Asking Claude to design a game...`);
+  const typesChosenThisRun = [];
+
+  if (!FORCE_TYPE) {
+    const { counts, recentCount } = chooseAllowedTypes(games);
+    if (recentCount > 0) {
+      const summary = Object.entries(counts)
+        .sort((a, b) => b[1] - a[1])
+        .map(([t, n]) => `${t} ${n}`)
+        .join(", ");
+      console.log(`\nLast ${recentCount} games by type: ${summary}`);
+    }
+  }
+
+  for (const [index, story] of targetStories.entries()) {
+    // Reserve the first game of every run for an unusual format.
+    const rareOnly = !FORCE_TYPE && index === 0;
+    const { allowed } = chooseAllowedTypes(games, typesChosenThisRun, { rareOnly });
+    if (!FORCE_TYPE) {
+      console.log(
+        `\n[${story.title}] Types available this round${rareOnly ? " (rare slot)" : ""}: ${allowed.join(", ")}`
+      );
+    }
+    console.log(`[${story.title}] Asking Claude to design a game...`);
     let plan;
     try {
-      plan = await planGameForStory(story, FORCE_TYPE);
+      plan = await planGameForStory(story, FORCE_TYPE, allowed);
     } catch (err) {
       console.warn(`[${story.title}] Failed to plan a game, skipping:`, err.message);
+      continue;
+    }
+
+    // Claude occasionally answers with a type that wasn't on the menu; treat
+    // that as a failed plan rather than quietly letting the bias back in.
+    if (!FORCE_TYPE && !allowed.includes(plan.gameType)) {
+      console.warn(
+        `[${story.title}] Claude picked "${plan.gameType}", which wasn't offered this round. Skipping.`
+      );
       continue;
     }
 
@@ -506,6 +629,7 @@ async function main() {
       console.log(`[${story.title}] --dry-run set — not creating. Payload:`);
       console.log(JSON.stringify(payload, null, 2));
       created.push({ story: story.title, gameType: plan.gameType, title: plan.title, id: "(dry-run)" });
+      typesChosenThisRun.push(plan.gameType);
       continue;
     }
 
@@ -513,6 +637,7 @@ async function main() {
       const game = await createGame(token, payload);
       console.log(`[${story.title}] Created game ID ${game.id} (${game.isActive ? "live" : "inactive — review before switching on"})`);
       created.push({ story: story.title, gameType: plan.gameType, title: plan.title, id: game.id });
+      typesChosenThisRun.push(plan.gameType);
     } catch (err) {
       console.warn(`[${story.title}] Failed to create game:`, err.message);
     }

@@ -91,9 +91,9 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-background font-sans selection:bg-accent selection:text-accent-foreground flex flex-col">
       <Helmet>
-        <title>WhyPals - Audio News for Kids</title>
+        <title>WhyPals - Listen to News for Kids</title>
         <meta name="description" content="Kids' news you can listen to. WhyPals narrates age-appropriate stories about what's happening in the world, with a library kids can play like a podcast — plus games to go with every story." />
-        <meta property="og:title" content="WhyPals - Audio News for Kids" />
+        <meta property="og:title" content="WhyPals - Listen to News for Kids" />
         <meta property="og:description" content="Kids' news you can listen to. WhyPals narrates age-appropriate stories about what's happening in the world, with a library kids can play like a podcast — plus games to go with every story." />
         <meta property="og:type" content="website" />
       </Helmet>

@@ -235,7 +235,7 @@ export default function Register() {
                   <div className="text-sm">
                     <Label htmlFor="terms" className="cursor-pointer">
                       i agree to the{" "}
-                      <Link href="/about?from=register" className="text-primary font-semibold hover:underline">
+                      <Link href="/terms?from=register" className="text-primary font-semibold hover:underline">
                         terms & conditions
                       </Link>
                       .

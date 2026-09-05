@@ -9,8 +9,10 @@
  *     from scripts/weekly-themes.json by today's date), each also tagged
  *     with whichever normal category best fits its specific angle
  *
- * All 6 are created as DRAFTS (isPublished: false) for review in the admin
- * panel before going live — nothing is auto-published.
+ * If the "Auto-publish" toggle in /admin is OFF, all 6 are created as DRAFTS
+ * (isPublished: false) for review in the admin panel before going live. If
+ * it's ON, all 6 publish immediately — and the first themed story also
+ * becomes the site's featured story (unfeaturing last week's).
  *
  * Run manually:
  *   node scripts/auto-weekly-stories.mjs
@@ -308,10 +310,26 @@ async function getAutoPublishEnabled(token) {
   }
 }
 
-async function featureStory(token, id) {
+// Unfeatures every other currently-featured story (e.g. last week's theme
+// stories) and features this one. Only call this ONCE per batch — calling
+// it again for a second story would immediately unfeature the first one.
+async function featureStoryAndUnfeatureOthers(token, id) {
   const res = await fetch(`${WHYPALS_BASE_URL}/api/admin/stories/${id}/feature`, {
     method: "POST",
     headers: { "x-admin-token": token },
+  });
+  if (!res.ok) throw new Error(`Feature story failed ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+// Adds isFeatured:true to a story WITHOUT touching any other story's
+// featured state — use this for the 2nd/3rd theme story after the 1st has
+// already unfeatured everything else via featureStoryAndUnfeatureOthers.
+async function addToFeatured(token, id) {
+  const res = await fetch(`${WHYPALS_BASE_URL}/api/admin/stories/${id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", "x-admin-token": token },
+    body: JSON.stringify({ isFeatured: true }),
   });
   if (!res.ok) throw new Error(`Feature story failed ${res.status}: ${await res.text()}`);
   return res.json();
@@ -669,6 +687,8 @@ async function main() {
 
   // 3 general stories, 3 distinct random categories, topics picked together
   // in one call so they can't overlap with each other (or with recent history).
+  // When auto-publish is on, all 6 stories this week go live immediately —
+  // not just the theme story — so `autoPublish` here just mirrors the setting.
   const shuffled = [...NORMAL_CATEGORIES].sort(() => Math.random() - 0.5);
   const generalCategories = shuffled.slice(0, 3);
   console.log(`\nPicking 3 distinct general topics for: ${generalCategories.join(", ")}...`);
@@ -680,45 +700,52 @@ async function main() {
       topicHint: t.topic,
       themeContext: undefined,
       label: `general/${t.category}`,
+      autoPublish: autoPublishEnabled,
     });
     created.push(story);
     newTitles.push(story.title);
   }
 
-  // 3 themed stories, if a theme is scheduled for today. The first one is
-  // this week's "theme story" — when auto-publish is on, it skips the draft
-  // step and becomes the site's featured story (unfeaturing last week's).
+  // 3 themed stories, if a theme is scheduled for today. When auto-publish
+  // is on, all 3 publish AND all 3 become featured stories (unfeaturing
+  // whatever was featured from last week) — the whole theme takes over the
+  // homepage's featured spot together, not just one story.
   if (theme) {
     console.log(`\nPicking 3 angles for theme "${theme}"...`);
     const angles = await pickThemeAngles(theme, [...recentTitles, ...newTitles]);
-    for (let i = 0; i < angles.length; i++) {
-      const angle = angles[i];
-      const isPrimaryThemeStory = i === 0 && autoPublishEnabled;
+    const themeStories = [];
+    for (const angle of angles) {
       const story = await buildAndPostStory({
         token,
         categories: ["Weekly Theme", angle.bestFitCategory],
         topicHint: angle.topic,
         themeContext: theme,
         label: `theme/${angle.bestFitCategory}`,
-        autoPublish: isPrimaryThemeStory,
+        autoPublish: autoPublishEnabled,
       });
       created.push(story);
       newTitles.push(story.title);
+      themeStories.push(story);
+    }
 
-      if (isPrimaryThemeStory) {
-        console.log(`[story] Featuring this week's theme story (#${story.id}), unfeaturing last week's...`);
-        try {
-          await featureStory(token, story.id);
-        } catch (err) {
-          console.warn("[story] Failed to auto-feature theme story (continuing):", err.message);
+    if (autoPublishEnabled && themeStories.length > 0) {
+      console.log(
+        `[story] Featuring all ${themeStories.length} of this week's theme stories, unfeaturing last week's...`
+      );
+      try {
+        await featureStoryAndUnfeatureOthers(token, themeStories[0].id);
+        for (const story of themeStories.slice(1)) {
+          await addToFeatured(token, story.id);
         }
+      } catch (err) {
+        console.warn("[story] Failed to auto-feature theme stories (continuing):", err.message);
       }
     }
   }
 
   saveRecentTitles(recentTitles, newTitles);
 
-  console.log(`\nDone! Created ${created.length} draft stories:`);
+  console.log(`\nDone! Created ${created.length} ${autoPublishEnabled ? "published" : "draft"} stories:`);
   for (const s of created) {
     console.log(`  #${s.id} — ${s.title} [${s.category.join(", ")}]`);
   }

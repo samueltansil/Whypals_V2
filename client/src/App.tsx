@@ -32,6 +32,7 @@ import Login from "@/pages/login";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import About from "@/pages/about";
+import Terms from "@/pages/terms";
 import Contact from "@/pages/contact";
 import { useAuth } from "@/hooks/useAuth";
 import { CanonicalTag } from "@/components/canonical-tag";
@@ -85,6 +86,7 @@ function Router() {
         {/* Public Routes */}
         <Route path="/" component={Home} />
         <Route path="/about" component={About} />
+        <Route path="/terms" component={Terms} />
         <Route path="/contact" component={Contact} />
         <Route path="/admin/stories" component={AdminStories} />
         <Route path="/admin/videos" component={AdminVideos} />
@@ -103,6 +105,7 @@ function Router() {
         {/* Public Routes */}
         <Route path="/" component={Home} />
         <Route path="/about" component={About} />
+        <Route path="/terms" component={Terms} />
         <Route path="/contact" component={Contact} />
         <Route path="/games" component={Games} />
         <Route path="/game/:id" component={GamePreview} />
@@ -136,7 +139,7 @@ function App() {
     <TooltipProvider>
       <CanonicalTag />
       <Helmet>
-        <title>WhyPals - Audio News for Kids</title>
+        <title>WhyPals - Listen to News for Kids</title>
       </Helmet>
       <Toaster />
       <Router />

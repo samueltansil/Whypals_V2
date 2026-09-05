@@ -1,208 +1,124 @@
-import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import logo from "@assets/whypals-logo.png";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Volume2, ShieldCheck, Sparkles, Gamepad2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Helmet } from "@/lib/helmet";
 
 export default function About() {
-  const [fromRegister, setFromRegister] = useState(false);
-
-  useEffect(() => {
-    const search = window.location.search;
-    const params = new URLSearchParams(search);
-    setFromRegister(params.get("from") === "register");
-  }, []);
   return (
     <div className="min-h-screen bg-background font-sans flex flex-col">
+      <Helmet>
+        <title>About WhyPals - Audio News for Kids</title>
+        <meta name="description" content="WhyPals turns real, age-appropriate news stories into narrated audio kids can listen to like a podcast — with games and a growing library of Big Why questions to go with every story." />
+        <meta property="og:title" content="About WhyPals - Audio News for Kids" />
+        <meta property="og:description" content="WhyPals turns real, age-appropriate news stories into narrated audio kids can listen to like a podcast — with games and a growing library of Big Why questions to go with every story." />
+        <meta property="og:type" content="website" />
+      </Helmet>
+
       <nav className="p-4 border-b border-border/50 bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <div className="container mx-auto flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 font-heading text-2xl font-bold text-primary hover:opacity-80 transition-opacity">
             <img src={logo} alt="WhyPals Logo" className="h-10 w-10 object-contain" />
             WhyPals
           </Link>
-          <Link href={fromRegister ? "/register" : "/"}>
+          <Link href="/">
             <Button variant="ghost" className="gap-2">
               <ArrowLeft className="w-4 h-4" />
-              {fromRegister ? "Back to Register" : "Back to Home"}
+              Back to Home
             </Button>
           </Link>
         </div>
       </nav>
 
       <main className="container mx-auto px-4 py-12 flex-grow">
-        <div className="max-w-4xl mx-auto space-y-12">
+        <div className="max-w-4xl mx-auto space-y-16">
           <section className="space-y-4 text-center">
-            <h1 className="font-heading text-4xl md:text-5xl font-bold text-primary">WhyPals – Terms and Conditions</h1>
-            <p className="text-sm text-muted-foreground">Last updated: 4 January 2026</p>
-            <p className="text-xl text-muted-foreground leading-relaxed">
-              These Terms and Conditions govern your access to and use of the WhyPals website, platform, and related services (collectively, the Platform).
-              By accessing or using WhyPals, you agree to be bound by these Terms. If you do not agree with these Terms, please do not use the Platform.
+            <h1 className="font-heading text-4xl md:text-5xl font-bold text-primary">News You Can Listen To</h1>
+            <p className="text-xl text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+              WhyPals is audio news for kids — real stories about what's happening in the world, narrated out loud,
+              with games and questions built around every one.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">1. About WhyPals</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
+            <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground">Why we built WhyPals</h2>
+            <div className="text-lg text-muted-foreground leading-relaxed space-y-4">
               <p>
-                WhyPals is an educational platform designed to help children learn about the world through age-appropriate,
-                informative, and engaging content. WhyPals is intended for use by children with parental or guardian involvement.
+                Most "news for kids" is still built to be read: long articles, small text, a lot to sit still for.
+                Kids don't always want to read the news — sometimes they just want someone to tell it to them.
+              </p>
+              <p>
+                So every story on WhyPals is narrated out loud, the same way a podcast episode would be. Kids can
+                listen while they're drawing, in the car, or before bed — and read along with the transcript if
+                they want to follow the words too. It's news that fits how kids actually want to take it in.
               </p>
             </div>
           </section>
 
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">2. Eligibility and Parental Consent</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Users under the age of 13 may only create and use an account with the review, approval, and consent of a parent or legal guardian.</li>
-                <li>WhyPals does not knowingly collect personal data from children under 13 without parental consent.</li>
-                <li>Parents or guardians are responsible for supervising their child’s use of the Platform. If you are a parent or guardian, you confirm that you have the authority to provide consent on behalf of the child.</li>
-              </ul>
+          <section className="space-y-6">
+            <h2 className="font-heading text-2xl md:text-3xl font-bold text-foreground">What's inside</h2>
+            <div className="grid sm:grid-cols-2 gap-6">
+              <div className="flex gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10">
+                <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <Volume2 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground mb-1">Narrated stories</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    New, age-appropriate news stories, narrated out loud and updated on a regular schedule — a
+                    library kids can play through like a podcast.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10">
+                <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground mb-1">Big Why questions</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Every story comes with a "Big Why" — a question that digs a little deeper into an idea the
+                    story touches on but doesn't fully explain.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10">
+                <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <Gamepad2 className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground mb-1">Games for every story</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Quizzes and mini-games built around what kids just listened to, so the story sticks after the
+                    audio ends.
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-4 p-5 rounded-2xl bg-primary/5 border border-primary/10">
+                <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center flex-shrink-0">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground mb-1">Built for kids, with parents in mind</h3>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Every story is age-appropriate and reviewed before it's published, with parental involvement
+                    built into how accounts work.
+                  </p>
+                </div>
+              </div>
             </div>
           </section>
 
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">3. Educational Use Only</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>
-                The WhyPals Platform is provided solely for educational and informational purposes. The content on WhyPals is not intended to
-                replace professional advice, including educational, medical, psychological, or legal advice. Parents and guardians remain
-                responsible for guiding and supporting their child’s learning.
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">4. Account Registration and Responsibility</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>When creating an account:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Information provided must be accurate and up to date.</li>
-                <li>Accounts may not be shared between users.</li>
-                <li>Parents or guardians are responsible for all activities conducted under a child’s account.</li>
-                <li>WhyPals reserves the right to suspend or terminate accounts that violate these Terms.</li>
-              </ul>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">5. Child Safety and Monitoring</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <ul className="list-disc pl-6 space-y-2">
-                <li>WhyPals may monitor or review content, interactions, or activity on the Platform for safety, moderation, and educational purposes only.</li>
-                <li>Monitoring is not used for advertising, behavioural tracking, or profiling of children.</li>
-                <li>Inappropriate, harmful, or unsafe content or behaviour is strictly prohibited.</li>
-              </ul>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">6. Acceptable Use</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>Users agree that they will not:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Share inappropriate, offensive, or harmful content</li>
-                <li>Harass, bully, or threaten other users</li>
-                <li>Attempt to bypass safety features or moderation systems</li>
-                <li>Upload content that infringes intellectual property or privacy rights</li>
-                <li>Use the Platform for non-educational or commercial purposes</li>
-              </ul>
-              <p>WhyPals may remove content or restrict access at its discretion to protect users.</p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">7. Personal Data and Privacy</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>
-                WhyPals complies with the Personal Data Protection Act 2012 (PDPA) of Singapore and is committed to protecting children’s personal data through reasonable and appropriate safeguards.
-              </p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>WhyPals collects only limited personal data necessary to operate the Platform.</li>
-                <li>Personal data is used only for stated educational and operational purposes.</li>
-                <li>Parents or guardians may request access to, correction of, or deletion of their child’s personal data.</li>
-              </ul>
-              <p>Further details are set out in the WhyPals Privacy Policy, which forms part of these Terms.</p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">8. Parental Rights</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>Parents or guardians may:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>Review personal information collected about their child</li>
-                <li>Request correction or deletion of such information</li>
-                <li>Withdraw consent and request account closure</li>
-              </ul>
-              <p>
-                Requests may be made by contacting WhyPals at:{" "}
-                <a href="mailto:admin@whypals.com" className="text-primary font-semibold hover:underline">admin@whypals.com</a>
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">9. Intellectual Property</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>
-                All content on WhyPals, including text, illustrations, logos, and educational materials, is owned by or licensed to WhyPals.
-                Users may not copy, distribute, modify, or reproduce content without prior written permission, except for personal, non-commercial educational use.
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">10. Suspension and Termination</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>WhyPals may suspend or terminate access to the Platform if:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>These Terms are breached</li>
-                <li>There are safety or legal concerns</li>
-                <li>Continued use may pose risk to other users</li>
-              </ul>
-              <p>Termination does not affect any rights or obligations accrued before termination.</p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">11. Disclaimer and Limitation of Liability</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>WhyPals provides the Platform on an “as is” and “as available” basis. To the fullest extent permitted by law:</p>
-              <ul className="list-disc pl-6 space-y-2">
-                <li>WhyPals does not guarantee uninterrupted or error-free access.</li>
-                <li>WhyPals is not liable for indirect, incidental, or consequential losses arising from use of the Platform.</li>
-              </ul>
-              <p>Nothing in these Terms limits liability that cannot be excluded under Singapore law.</p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">12. Changes to These Terms</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>
-                WhyPals may update these Terms from time to time. Updated Terms will be posted on the Platform, and continued use indicates acceptance of the revised Terms.
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">13. Governing Law and Jurisdiction</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>
-                These Terms and Conditions are governed by and construed in accordance with the laws of Singapore. Any dispute arising out of or in connection with these Terms shall be subject to the exclusive jurisdiction of the courts of Singapore.
-              </p>
-            </div>
-          </section>
-
-          <section className="space-y-4">
-            <h2 className="font-heading text-3xl font-bold text-primary">14. Contact Us</h2>
-            <div className="text-xl text-muted-foreground leading-relaxed space-y-3">
-              <p>
-                If you have any questions about these Terms, please contact{" "}
-                <a href="mailto:admin@whypals.com" className="text-primary font-semibold hover:underline">admin@whypals.com</a>.
-              </p>
-            </div>
+          <section className="space-y-4 text-center bg-primary/5 rounded-2xl p-8 border border-primary/10">
+            <h2 className="font-heading text-2xl font-bold text-foreground">Questions or feedback?</h2>
+            <p className="text-muted-foreground">
+              We'd love to hear from you at{" "}
+              <a href="mailto:admin@whypals.com" className="text-primary font-semibold hover:underline">admin@whypals.com</a>.
+            </p>
+            <p className="text-sm text-muted-foreground/80">
+              For the legal details, see our{" "}
+              <Link href="/terms" className="text-primary font-semibold hover:underline">Terms and Conditions</Link>.
+            </p>
           </section>
         </div>
       </main>
@@ -215,7 +131,7 @@ export default function About() {
               <span className="font-heading text-xl font-bold text-muted-foreground">WhyPals</span>
             </div>
             <div className="flex gap-8 text-sm font-semibold text-muted-foreground">
-              <Link href="/about" className="text-primary font-bold hover:opacity-80 transition-opacity">Privacy & Safety</Link>
+              <Link href="/terms" className="text-primary font-bold hover:opacity-80 transition-opacity">Terms & Privacy</Link>
               <Link href="/contact" className="hover:text-primary transition-colors">Contact</Link>
             </div>
             <p className="text-xs text-muted-foreground/50">
